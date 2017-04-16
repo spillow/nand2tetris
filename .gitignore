@@ -1,1 +1,9 @@
+*.swp
+*.jou
+*.log
+*.str
 tools/
+Hack.cache
+Hack.hw
+Hack.ip_user_files
+Hack.sim
