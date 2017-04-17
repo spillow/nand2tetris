@@ -2,6 +2,7 @@
 *.jou
 *.log
 *.str
+*.vhd~
 tools/
 Hack.cache
 Hack.hw
