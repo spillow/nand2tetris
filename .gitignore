@@ -11,4 +11,5 @@ Hack.sim
 Hack.runs
 HackFPGA/IP/blk_mem_gen_inst_rom/*
 HackFPGA/IP/blk_mem_gen_data_ram/*
+HackFPGA/IP/blk_mem_gen_video_ram/*
 !*.xci
