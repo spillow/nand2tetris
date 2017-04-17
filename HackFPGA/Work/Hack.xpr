@@ -37,13 +37,13 @@
     <Option Name="WTVcsLaunchSim" Val="0"/>
     <Option Name="WTRivieraLaunchSim" Val="0"/>
     <Option Name="WTActivehdlLaunchSim" Val="0"/>
-    <Option Name="WTXSimExportSim" Val="1"/>
-    <Option Name="WTModelSimExportSim" Val="1"/>
-    <Option Name="WTQuestaExportSim" Val="1"/>
-    <Option Name="WTIesExportSim" Val="1"/>
-    <Option Name="WTVcsExportSim" Val="1"/>
-    <Option Name="WTRivieraExportSim" Val="1"/>
-    <Option Name="WTActivehdlExportSim" Val="1"/>
+    <Option Name="WTXSimExportSim" Val="4"/>
+    <Option Name="WTModelSimExportSim" Val="4"/>
+    <Option Name="WTQuestaExportSim" Val="4"/>
+    <Option Name="WTIesExportSim" Val="4"/>
+    <Option Name="WTVcsExportSim" Val="4"/>
+    <Option Name="WTRivieraExportSim" Val="4"/>
+    <Option Name="WTActivehdlExportSim" Val="4"/>
     <Option Name="GenerateIPUpgradeLog" Val="TRUE"/>
     <Option Name="XSimRadix" Val="hex"/>
     <Option Name="XSimTimeUnit" Val="ns"/>
@@ -78,10 +78,31 @@
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="c:/Users/spillow/Experiments/nand2tetris/HackFPGA/COE/mult.coe"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="blk_mem_gen_inst_rom.vho"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="blk_mem_gen_inst_rom.veo"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="blk_mem_gen_inst_rom.xml"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="synth/blk_mem_gen_inst_rom.vhd"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="hdl/blk_mem_gen_v8_3_vhsyn_rfs.vhd"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="simulation/blk_mem_gen_v8_3.v"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="blk_mem_gen_inst_rom.mif"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="sim/blk_mem_gen_inst_rom.v"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="misc/blk_mem_gen_v8_3.vhd"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="summary.log"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="blk_mem_gen_inst_rom_ooc.xdc"/>
+        <CompFileExtendedInfo CompFileName="blk_mem_gen_inst_rom.xci" FileRelPathName="doc/blk_mem_gen_v8_3_changelog.txt"/>
       </File>
       <File Path="$PPRDIR/../COE/mult.coe">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
+      <File Path="$PPRDIR/../IP/blk_mem_gen_data_ram/blk_mem_gen_data_ram.xci">
+        <FileInfo>
+          <Attr Name="AutoDisabled" Val="1"/>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
