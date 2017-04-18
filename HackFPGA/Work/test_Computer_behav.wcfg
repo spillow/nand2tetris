@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="test_Computer_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="test_Computer" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="782051262fs"></ZoomEndTime>
+      <Cursor1Time time="239927000fs"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="101"></NameColumnWidth>
+      <ValueColumnWidth column_width="50"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="35" />
+   <wvobject fp_name="/test_Computer/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/reset" type="logic">
+      <obj_property name="ElementShortName">reset</obj_property>
+      <obj_property name="ObjectShortName">reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/d_reg" type="array">
+      <obj_property name="ElementShortName">d_reg[15:0]</obj_property>
+      <obj_property name="ObjectShortName">d_reg[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/cpu_clk" type="logic">
+      <obj_property name="ElementShortName">cpu_clk</obj_property>
+      <obj_property name="ObjectShortName">cpu_clk</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider91">
+      <obj_property name="label">PC</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/pc_addr" type="array">
+      <obj_property name="ElementShortName">pc_addr[14:0]</obj_property>
+      <obj_property name="ObjectShortName">pc_addr[14:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/PCb/output" type="array">
+      <obj_property name="ElementShortName">output[15:0]</obj_property>
+      <obj_property name="ObjectShortName">output[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/PCb/load" type="logic">
+      <obj_property name="ElementShortName">load</obj_property>
+      <obj_property name="ObjectShortName">load</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/PCb/inc" type="logic">
+      <obj_property name="ElementShortName">inc</obj_property>
+      <obj_property name="ObjectShortName">inc</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/PCb/reset" type="logic">
+      <obj_property name="ElementShortName">reset</obj_property>
+      <obj_property name="ObjectShortName">reset</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider90">
+      <obj_property name="label">rom</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/inst_rom/addra" type="array">
+      <obj_property name="ElementShortName">addra[14:0]</obj_property>
+      <obj_property name="ObjectShortName">addra[14:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/inst_rom/douta" type="array">
+      <obj_property name="ElementShortName">douta[15:0]</obj_property>
+      <obj_property name="ObjectShortName">douta[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/a_reg" type="array">
+      <obj_property name="ElementShortName">a_reg[15:0]</obj_property>
+      <obj_property name="ObjectShortName">a_reg[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider89">
+      <obj_property name="label">ram</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/data_ram/addra" type="array">
+      <obj_property name="ElementShortName">addra[13:0]</obj_property>
+      <obj_property name="ObjectShortName">addra[13:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/data_ram/dina" type="array">
+      <obj_property name="ElementShortName">dina[15:0]</obj_property>
+      <obj_property name="ObjectShortName">dina[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/data_ram/douta" type="array">
+      <obj_property name="ElementShortName">douta[15:0]</obj_property>
+      <obj_property name="ObjectShortName">douta[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/data_ram/wea" type="array">
+      <obj_property name="ElementShortName">wea[0:0]</obj_property>
+      <obj_property name="ObjectShortName">wea[0:0]</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider113">
+      <obj_property name="label">CPU</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/d_reg" type="array">
+      <obj_property name="ElementShortName">d_reg[15:0]</obj_property>
+      <obj_property name="ObjectShortName">d_reg[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/instruction" type="array">
+      <obj_property name="ElementShortName">instruction[15:0]</obj_property>
+      <obj_property name="ObjectShortName">instruction[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/comp_a" type="logic">
+      <obj_property name="ElementShortName">comp_a</obj_property>
+      <obj_property name="ObjectShortName">comp_a</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider126">
+      <obj_property name="label">ALU</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/x" type="array">
+      <obj_property name="ElementShortName">x[15:0]</obj_property>
+      <obj_property name="ObjectShortName">x[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/y" type="array">
+      <obj_property name="ElementShortName">y[15:0]</obj_property>
+      <obj_property name="ObjectShortName">y[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/zx" type="logic">
+      <obj_property name="ElementShortName">zx</obj_property>
+      <obj_property name="ObjectShortName">zx</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/nx" type="logic">
+      <obj_property name="ElementShortName">nx</obj_property>
+      <obj_property name="ObjectShortName">nx</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/zy" type="logic">
+      <obj_property name="ElementShortName">zy</obj_property>
+      <obj_property name="ObjectShortName">zy</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/ny" type="logic">
+      <obj_property name="ElementShortName">ny</obj_property>
+      <obj_property name="ObjectShortName">ny</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/f" type="logic">
+      <obj_property name="ElementShortName">f</obj_property>
+      <obj_property name="ObjectShortName">f</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/no" type="logic">
+      <obj_property name="ElementShortName">no</obj_property>
+      <obj_property name="ObjectShortName">no</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/outb" type="array">
+      <obj_property name="ElementShortName">outb[15:0]</obj_property>
+      <obj_property name="ObjectShortName">outb[15:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/zr" type="logic">
+      <obj_property name="ElementShortName">zr</obj_property>
+      <obj_property name="ObjectShortName">zr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/test_Computer/dev_to_test/CPUb/ALUb/ng" type="logic">
+      <obj_property name="ElementShortName">ng</obj_property>
+      <obj_property name="ObjectShortName">ng</obj_property>
+   </wvobject>
+</wave_config>

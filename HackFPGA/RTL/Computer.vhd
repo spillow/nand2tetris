@@ -47,7 +47,7 @@ architecture behavior of Computer is
   end component blk_mem_gen_data_ram;
 
   constant cpu_count : integer := 3;
-  signal cpu_counter : unsigned(1 downto 0) := to_unsigned(0, 2);
+  signal cpu_counter : unsigned(1 downto 0);
   signal cpu_clk     : std_logic;
 
   signal ram_data_out : std_logic_vector(15 downto 0);
@@ -90,9 +90,12 @@ begin
       pc_addr     => pc_addr,
       d_reg_out   => d_reg);
   
-  cpu_clk_proc : process(sys_clk)
+  cpu_clk_proc : process(sys_clk, reset)
   begin
-    if rising_edge(sys_clk) then
+    if (reset = '1') then
+      cpu_clk <= '0';
+      cpu_counter <= to_unsigned(0, cpu_counter'length);
+    elsif rising_edge(sys_clk) then
       if (cpu_counter = cpu_count) then
         cpu_clk <= not cpu_clk;
         cpu_counter <= (others => '0');

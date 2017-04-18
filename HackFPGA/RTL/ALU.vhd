@@ -25,36 +25,22 @@ entity ALU is
 end entity ALU;
 
 architecture behavior of ALU is
-  signal xmod    : std_logic_vector(15 downto 0);
-  signal ymod    : std_logic_vector(15 downto 0);
+  signal zxmod   : std_logic_vector(15 downto 0);
+  signal zymod   : std_logic_vector(15 downto 0);
+  signal nxmod   : std_logic_vector(15 downto 0);
+  signal nymod   : std_logic_vector(15 downto 0);
   signal comp    : std_logic_vector(15 downto 0);
   signal neg_out : std_logic_vector(15 downto 0);
 begin
 
-  xmodp: process(zx, nx, x)
-  begin
-    if (zx = '1') then
-      xmod <= (others => '0');
-    elsif (nx = '1') then
-      xmod <= not x;
-    else
-      xmod <= x;
-    end if;
-  end process xmodp;
+  zxmod <= (others => '0') when zx = '1' else x;
+  nxmod <= (not zxmod) when nx = '1' else zxmod;
 
-  ymodp: process(zy, ny, y)
-  begin
-    if (zy = '1') then
-      ymod <= (others => '0');
-    elsif (ny = '1') then
-      ymod <= not y;
-    else
-      ymod <= y;
-    end if;
-  end process ymodp;
+  zymod <= (others => '0') when zy = '1' else y;
+  nymod <= (not zymod) when ny = '1' else zymod;
 
-  comp <= std_logic_vector(unsigned(xmod) + unsigned(ymod)) when f = '1' else
-          (xmod and ymod);
+  comp <= std_logic_vector(unsigned(nxmod) + unsigned(nymod)) when f = '1' else
+          (nxmod and nymod);
 
   neg_out <= comp when no = '0' else
              not comp;

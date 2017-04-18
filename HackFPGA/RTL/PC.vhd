@@ -25,12 +25,12 @@ begin
 
   output <= output_tmp;
 
-  proc: process(clk)
+  proc: process(clk, reset)
   begin
-    if rising_edge(clk) then
-      if (reset = '1') then
+    if (reset = '1') then
         output_tmp <= (others => '0');
-      elsif (load = '1') then
+    elsif rising_edge(clk) then
+      if (load = '1') then
         output_tmp <= input;
       elsif (inc = '1') then
         output_tmp <= std_logic_vector(unsigned(output_tmp) + 1);

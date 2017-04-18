@@ -50,6 +50,7 @@ architecture Behavioral of CPU is
   signal am_select  : std_logic_vector(15 downto 0);
 
   signal pc_load    : std_logic;
+  signal pc_load_en : std_logic;
 
   signal zr         : std_logic;
   signal ng         : std_logic;
@@ -96,7 +97,7 @@ begin
                 alu_output;
 
   addressM   <= a_reg(14 downto 0);
-  writeM     <= is_c_inst and dest_d;
+  writeM     <= is_c_inst and dest_m;
   outM       <= alu_output;
 
   am_select  <= a_reg when comp_a = '0' else inM;
@@ -140,19 +141,21 @@ begin
     end if;
   end process reg_update;
 
+  pc_load <= is_c_inst and pc_load_en;
+
   pc_loadb : process(jump, zr, ng)
   begin
-    pc_load <= '0';
+    pc_load_en <= '0';
     case jump is
-      when "000"  => pc_load <= '0';                    -- null
-      when "001"  => pc_load <= (not ng) and (not zr);  -- JGT
-      when "010"  => pc_load <= zr;                     -- JEQ
-      when "011"  => pc_load <= not ng;                 -- JGE
-      when "100"  => pc_load <= ng;                     -- JLT
-      when "101"  => pc_load <= not zr;                 -- JNE
-      when "110"  => pc_load <= zr or ng;               -- JLE
-      when "111"  => pc_load <= '1';                    -- JMP
-      when others => pc_load <= '0';
+      when "000"  => pc_load_en <= '0';                    -- null
+      when "001"  => pc_load_en <= (not ng) and (not zr);  -- JGT
+      when "010"  => pc_load_en <= zr;                     -- JEQ
+      when "011"  => pc_load_en <= not ng;                 -- JGE
+      when "100"  => pc_load_en <= ng;                     -- JLT
+      when "101"  => pc_load_en <= not zr;                 -- JNE
+      when "110"  => pc_load_en <= zr or ng;               -- JLE
+      when "111"  => pc_load_en <= '1';                    -- JMP
+      when others => pc_load_en <= '0';
     end case;
   end process pc_loadb;
 
