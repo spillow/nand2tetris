@@ -12,7 +12,8 @@ use IEEE.NUMERIC_STD.all;
 entity Computer is
   port (
     sys_clk : in std_logic;
-    reset   : in std_logic);
+    reset   : in std_logic;
+    d_reg   : out std_logic_vector(15 downto 0));
 end entity Computer;
 
 architecture behavior of Computer is
@@ -25,7 +26,8 @@ architecture behavior of Computer is
       outM        : out std_logic_vector(15 downto 0);
       writeM      : out std_logic;
       addressM    : out std_logic_vector(14 downto 0);
-      pc_addr     : out std_logic_vector(14 downto 0));
+      pc_addr     : out std_logic_vector(14 downto 0);
+      d_reg_out   : out std_logic_vector(15 downto 0));
   end component CPU;
 
   component blk_mem_gen_inst_rom is
@@ -85,7 +87,8 @@ begin
       outM        => outM,
       writeM      => writeM,
       addressM    => addressM,
-      pc_addr     => pc_addr);
+      pc_addr     => pc_addr,
+      d_reg_out   => d_reg);
   
   cpu_clk_proc : process(sys_clk)
   begin

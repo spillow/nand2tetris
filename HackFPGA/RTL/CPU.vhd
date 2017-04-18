@@ -17,7 +17,8 @@ entity CPU is
     outM        : out std_logic_vector(15 downto 0);
     writeM      : out std_logic;
     addressM    : out std_logic_vector(14 downto 0);
-    pc_addr     : out std_logic_vector(14 downto 0));
+    pc_addr     : out std_logic_vector(14 downto 0);
+    d_reg_out   : out std_logic_vector(15 downto 0));
 end entity CPU;
 
 architecture Behavioral of CPU is
@@ -99,6 +100,8 @@ begin
   outM       <= alu_output;
 
   am_select  <= a_reg when comp_a = '0' else inM;
+
+  d_reg_out  <= d_reg;
 
   ALUb : ALU
     port map(
