@@ -84,6 +84,7 @@ MemorySegment getSegmentFromString(const std::string &Name)
 }
 
 typedef std::string HackInst;
+typedef std::vector<HackInst> HackSeq;
 
 class Instruction
 {
@@ -91,7 +92,7 @@ public:
     explicit Instruction(Opcode Op) : m_Opcode(Op) {}
 
     Opcode getOpcode() const { return m_Opcode; }
-    virtual std::vector<HackInst> emit() const = 0;
+    virtual HackSeq emit() const = 0;
 private:
     Opcode m_Opcode;
 };
@@ -102,7 +103,7 @@ public:
     explicit ArithBool(Opcode Op) :
         Instruction(Op) {}
 
-    std::vector<HackInst> emit() const override
+    HackSeq emit() const override
     {
         switch (getOpcode())
         {
@@ -121,7 +122,7 @@ public:
             break;
         }
 
-        return std::vector<HackInst>();
+        return HackSeq();
     }
 private:
 };
@@ -132,23 +133,91 @@ public:
     explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx) :
         Instruction(Op), m_Seg(Seg), m_Idx(Idx) {}
 
-    std::vector<HackInst> emit() const override
+    HackSeq emit() const override
     {
         switch (getOpcode())
         {
         case Opcode::POP:
+            return emitPop();
         case Opcode::PUSH:
-            break;
+            return emitPush();
         default:
             assert(0 && "unknown push/pop opcode!");
             break;
         }
-        return std::vector<HackInst>();
+        return HackSeq();
     }
 
 private:
     MemorySegment m_Seg;
     unsigned      m_Idx;
+
+    HackSeq emitPush() const
+    {
+        switch (m_Seg)
+        {
+        case MemorySegment::CONSTANT:
+            return {
+                // *SP = i
+                "@" + std::to_string(m_Idx),
+                "D=A",
+                "@SP",
+                "A=M",
+                "M=D",
+                // SP++
+                "@SP",
+                "M=M+1"
+            };
+        case MemorySegment::STATIC:
+            return {
+
+            };
+        case MemorySegment::POINTER:
+            return {
+
+            };
+        case MemorySegment::LOCAL:
+        case MemorySegment::ARGUMENT:
+        case MemorySegment::THIS:
+        case MemorySegment::THAT:
+            return {
+                // addr = segmentPointer + i
+                // *SP = *addr
+                // SP++
+            };
+        }
+
+        //assert(0);
+        return HackSeq();
+    }
+
+    HackSeq emitPop() const
+    {
+        switch (m_Seg)
+        {
+            // No constant!
+        case MemorySegment::STATIC:
+            return {
+
+            };
+        case MemorySegment::POINTER:
+            return {
+
+            };
+        case MemorySegment::LOCAL:
+        case MemorySegment::ARGUMENT:
+        case MemorySegment::THIS:
+        case MemorySegment::THAT:
+            // addr = segmentPointer + i
+            // SP--
+            // *addr = *SP
+            return {
+
+            };
+        }
+
+        return HackSeq();
+    }
 };
 
 std::vector<std::string> getLines(const std::string &Filename)
@@ -211,9 +280,9 @@ VMInstColl parse(const std::vector<std::string>& Lines)
     return Insts;
 }
 
-std::vector<HackInst> translate(const VMInstColl &Insts)
+HackSeq translate(const VMInstColl &Insts)
 {
-    std::vector<HackInst> HackInsts;
+    HackSeq HackInsts;
     for (auto &I : Insts)
     {
         auto Trans = I->emit();
