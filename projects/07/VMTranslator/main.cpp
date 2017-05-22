@@ -5,6 +5,7 @@
 #include <regex>
 #include <assert.h>
 #include <unordered_map>
+#include <memory>
 
 enum class Opcode
 {
@@ -32,17 +33,29 @@ enum class MemorySegment
     POINTER
 };
 
+bool isArithBool(Opcode Op)
+{
+    return Op < Opcode::POP;
+}
+
+bool isMemAccess(Opcode Op)
+{
+    return Op == Opcode::POP || Op == Opcode::PUSH;
+}
+
 static const std::unordered_map<std::string, Opcode> OpcodeMap =
 {
-    { "add", Opcode::ADD },
-    { "sub", Opcode::SUB },
-    { "neg", Opcode::NEG },
-    { "eq",  Opcode::EQ  },
-    { "gt",  Opcode::GT  },
-    { "lt",  Opcode::LT  },
-    { "and", Opcode::AND },
-    { "or",  Opcode::OR  },
-    { "not", Opcode::NOT },
+    { "add",  Opcode::ADD  },
+    { "sub",  Opcode::SUB  },
+    { "neg",  Opcode::NEG  },
+    { "eq",   Opcode::EQ   },
+    { "gt",   Opcode::GT   },
+    { "lt",   Opcode::LT   },
+    { "and",  Opcode::AND  },
+    { "or",   Opcode::OR   },
+    { "not",  Opcode::NOT  },
+    { "pop",  Opcode::POP  },
+    { "push", Opcode::PUSH },
 };
 
 Opcode getOpcodeFromString(const std::string &Name)
@@ -89,9 +102,6 @@ public:
     explicit ArithBool(Opcode Op) :
         Instruction(Op) {}
 
-    explicit ArithBool(const std::string &OpName) :
-        Instruction(getOpcodeFromString(OpName)) {}
-
     std::vector<HackInst> emit() const override
     {
         switch (getOpcode())
@@ -110,6 +120,8 @@ public:
             assert(0 && "unknown arith/bool opcode!");
             break;
         }
+
+        return std::vector<HackInst>();
     }
 private:
 };
@@ -119,14 +131,6 @@ class MemAccess : public Instruction
 public:
     explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx) :
         Instruction(Op), m_Seg(Seg), m_Idx(Idx) {}
-
-    explicit MemAccess(
-        const std::string &Name,
-        const std::string &Seg,
-        const std::string &Idx) :
-        Instruction(getOpcodeFromString(Name)),
-        m_Seg(getSegmentFromString(Seg)),
-        m_Idx(std::stoi(Idx)) {}
 
     std::vector<HackInst> emit() const override
     {
@@ -139,6 +143,7 @@ public:
             assert(0 && "unknown push/pop opcode!");
             break;
         }
+        return std::vector<HackInst>();
     }
 
 private:
@@ -176,9 +181,11 @@ std::vector<std::string> tokens(const std::string& S)
     return Words;
 }
 
-std::vector<Instruction> parse(const std::vector<std::string>& Lines)
+typedef std::vector<std::unique_ptr<Instruction>> VMInstColl;
+
+VMInstColl parse(const std::vector<std::string>& Lines)
 {
-    std::vector<Instruction> Insts;
+    VMInstColl Insts;
     for (auto &L : Lines)
     {
         auto Tokens = tokens(L);
@@ -186,18 +193,30 @@ std::vector<Instruction> parse(const std::vector<std::string>& Lines)
         if (Tokens.empty())
             continue;
 
-        // TODO
+        auto Op = getOpcodeFromString(Tokens[0]);
+
+        if (isArithBool(Op))
+        {
+            Insts.push_back(std::make_unique<ArithBool>(Op));
+        }
+        else if (isMemAccess(Op))
+        {
+            assert(Tokens.size() == 3 && "wrong number of args to push/pop!");
+            auto Seg = getSegmentFromString(Tokens[1]);
+            auto Idx = std::stoi(Tokens[2]);
+            Insts.push_back(std::make_unique<MemAccess>(Op, Seg, Idx));
+        }
     }
 
     return Insts;
 }
 
-std::vector<HackInst> translate(const std::vector<Instruction> &Insts)
+std::vector<HackInst> translate(const VMInstColl &Insts)
 {
     std::vector<HackInst> HackInsts;
     for (auto &I : Insts)
     {
-        auto Trans = I.emit();
+        auto Trans = I->emit();
         HackInsts.insert(std::end(HackInsts), std::begin(Trans), std::end(Trans));
     }
 
