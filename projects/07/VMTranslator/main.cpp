@@ -30,7 +30,8 @@ enum class MemorySegment
     THIS,
     THAT,
     CONSTANT,
-    POINTER
+    POINTER,
+    TEMP
 };
 
 bool isArithBool(Opcode Op)
@@ -74,6 +75,7 @@ static const std::unordered_map<std::string, MemorySegment> SegmentMap =
     { "that",     MemorySegment::THAT     },
     { "constant", MemorySegment::CONSTANT },
     { "pointer",  MemorySegment::POINTER  },
+    { "temp",     MemorySegment::TEMP     },
 };
 
 MemorySegment getSegmentFromString(const std::string &Name)
@@ -85,6 +87,32 @@ MemorySegment getSegmentFromString(const std::string &Name)
 
 typedef std::string HackInst;
 typedef std::vector<HackInst> HackSeq;
+
+class Hack
+{
+public:
+    static HackInst getSegment(MemorySegment Seg)
+    {
+        switch (Seg)
+        {
+        case MemorySegment::LOCAL:
+            return "@LCL";
+        case MemorySegment::ARGUMENT:
+            return "@ARG";
+        case MemorySegment::THIS:
+            return "@THIS";
+        case MemorySegment::THAT:
+            return "@THAT";
+        case MemorySegment::TEMP:
+            return "@5";
+        default:
+            break;
+        }
+
+        assert(0);
+        return "";
+    }
+};
 
 class Instruction
 {
@@ -109,13 +137,15 @@ public:
         {
         case Opcode::ADD:
         case Opcode::SUB:
+        case Opcode::AND:
+        case Opcode::OR:
+            break;
         case Opcode::NEG:
+        case Opcode::NOT:
+            break;
         case Opcode::EQ:
         case Opcode::GT:
         case Opcode::LT:
-        case Opcode::AND:
-        case Opcode::OR:
-        case Opcode::NOT:
             break;
         default:
             assert(0 && "unknown arith/bool opcode!");
@@ -130,8 +160,8 @@ private:
 class MemAccess : public Instruction
 {
 public:
-    explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx) :
-        Instruction(Op), m_Seg(Seg), m_Idx(Idx) {}
+    explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx, std::string Filename) :
+        Instruction(Op), m_Seg(Seg), m_Idx(Idx), m_Filename(Filename) {}
 
     HackSeq emit() const override
     {
@@ -151,6 +181,12 @@ public:
 private:
     MemorySegment m_Seg;
     unsigned      m_Idx;
+    std::string   m_Filename;
+
+    std::string getPointer() const
+    {
+        return (m_Idx == 0) ? "THIS" : "THAT";
+    }
 
     HackSeq emitPush() const
     {
@@ -170,24 +206,56 @@ private:
             };
         case MemorySegment::STATIC:
             return {
-
+                // addr = <filename>.idx
+                "@" + m_Filename + "." + std::to_string(m_Idx),
+                // *SP = *addr
+                "D=M",
+                "@SP",
+                "A=M",
+                "M=D",
+                // SP++
+                "@SP",
+                "M=M+1"
             };
         case MemorySegment::POINTER:
+            // accessing pointer 0 should result in accessing THIS
+            // accessing pointer 1 should result in accessing THAT
+            assert(m_Idx == 0 || m_Idx == 1);
             return {
-
+                // *SP = THIS/THAT
+                "@" + getPointer(),
+                "D=M",
+                "@SP",
+                "A=M",
+                "M=D",
+                // SP++
+                "@SP",
+                "M=M+1"
             };
         case MemorySegment::LOCAL:
         case MemorySegment::ARGUMENT:
         case MemorySegment::THIS:
         case MemorySegment::THAT:
+        case MemorySegment::TEMP:
             return {
                 // addr = segmentPointer + i
+                "@" + std::to_string(m_Idx),
+                "D=A",
+                Hack::getSegment(m_Seg),
+                "A=M",
+                "A=D+A",
                 // *SP = *addr
+                "D=M",
+                "@SP",
+                "A=M",
+                "M=D",
                 // SP++
+                "@SP",
+                "M=M+1"
             };
         }
 
-        //assert(0);
+        assert(0);
         return HackSeq();
     }
 
@@ -198,24 +266,54 @@ private:
             // No constant!
         case MemorySegment::STATIC:
             return {
-
+                // SP--
+                "@SP",
+                "M=M-1",
+                // *SP
+                "A=M",
+                "D=M",
+                // addr = <filename>.idx
+                "@" + m_Filename + "." + std::to_string(m_Idx),
+                // *addr = *SP
+                "M=D"
             };
         case MemorySegment::POINTER:
             return {
-
+                // SP--
+                "@SP",
+                "M=M-1",
+                "A=M",
+                "D=M",
+                // THIS/THAT = *SP
+                "@" + getPointer(),
+                "M=D"
             };
         case MemorySegment::LOCAL:
         case MemorySegment::ARGUMENT:
         case MemorySegment::THIS:
         case MemorySegment::THAT:
-            // addr = segmentPointer + i
-            // SP--
-            // *addr = *SP
+        case MemorySegment::TEMP:
             return {
-
+                // addr = segmentPointer + i
+                "@" + std::to_string(m_Idx),
+                "D=A",
+                Hack::getSegment(m_Seg),
+                "A=M",
+                "D=D+A",
+                "@R13",
+                "M=D",
+                // SP--
+                "@SP",
+                "M=M-1",
+                // *addr = *SP
+                "D=M",
+                "@R13",
+                "A=M",
+                "M=D"
             };
         }
 
+        assert(0);
         return HackSeq();
     }
 };
@@ -252,7 +350,7 @@ std::vector<std::string> tokens(const std::string& S)
 
 typedef std::vector<std::unique_ptr<Instruction>> VMInstColl;
 
-VMInstColl parse(const std::vector<std::string>& Lines)
+VMInstColl parse(const std::vector<std::string>& Lines, const std::string &Filename)
 {
     VMInstColl Insts;
     for (auto &L : Lines)
@@ -273,7 +371,7 @@ VMInstColl parse(const std::vector<std::string>& Lines)
             assert(Tokens.size() == 3 && "wrong number of args to push/pop!");
             auto Seg = getSegmentFromString(Tokens[1]);
             auto Idx = std::stoi(Tokens[2]);
-            Insts.push_back(std::make_unique<MemAccess>(Op, Seg, Idx));
+            Insts.push_back(std::make_unique<MemAccess>(Op, Seg, Idx, Filename));
         }
     }
 
@@ -292,6 +390,12 @@ HackSeq translate(const VMInstColl &Insts)
     return HackInsts;
 }
 
+std::string getFilename(const std::string &Path)
+{
+    auto Name = Path.substr(Path.find_last_of(R"(\/)") + 1);
+    return Name.substr(0, Name.find_last_of("."));
+}
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -300,10 +404,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    char *Filename = argv[1];
+    char *Filepath = argv[1];
 
-    auto Lines = getLines(Filename);
-    auto Instructions = parse(Lines);
+    auto Lines = getLines(Filepath);
+    auto Filename = getFilename(Filepath);
+    auto Instructions = parse(Lines, Filename);
 
     auto HackInsts = translate(Instructions);
 
