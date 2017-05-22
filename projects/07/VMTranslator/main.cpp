@@ -441,21 +441,34 @@ std::string getFilename(const std::string &Path)
     return Name.substr(0, Name.find_last_of("."));
 }
 
+void outputToFile(const std::string &Output, const HackSeq &Insts)
+{
+    std::ofstream Out(Output);
+
+    for (auto &I : Insts)
+    {
+        Out << I << "\n";
+    }
+}
+
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        std::cout << "Usage: VMTranslator file.vm\n";
+        std::cout << "Usage: VMTranslator <file.vm> <output.asm>\n";
         return 1;
     }
 
-    char *Filepath = argv[1];
+    const char *Filepath = argv[1];
+    const char *Output   = argv[2];
 
     auto Lines = getLines(Filepath);
     auto Filename = getFilename(Filepath);
     auto Instructions = parse(Lines, Filename);
 
     auto HackInsts = translate(Instructions);
+
+    outputToFile(Output, HackInsts);
 
     return 0;
 }
