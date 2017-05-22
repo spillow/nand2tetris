@@ -122,7 +122,7 @@ public:
     Opcode getOpcode() const { return m_Opcode; }
     virtual HackSeq emit() const = 0;
 private:
-    Opcode m_Opcode;
+    const Opcode m_Opcode;
 };
 
 class ArithBool : public Instruction
@@ -139,10 +139,37 @@ public:
         case Opcode::SUB:
         case Opcode::AND:
         case Opcode::OR:
-            break;
+            return {
+                // SP--
+                "@SP",
+                "M=M-1",
+                // y = *SP
+                "D=M",
+                // SP--
+                "M=M-1",
+                // *SP = *SP op y
+                "A=M",
+                operation(),
+                // SP++
+                "@SP",
+                "M=M+1"
+            };
         case Opcode::NEG:
         case Opcode::NOT:
-            break;
+        {
+            std::string Op = (getOpcode() == Opcode::NEG) ? "-" : "!";
+            return{
+                // SP--
+                "@SP",
+                "M=M-1",
+                // *SP = op *SP
+                "A=M",
+                "M=" + Op + "M",
+                // SP++
+                "@SP",
+                "M=M+1"
+            };
+        }
         case Opcode::EQ:
         case Opcode::GT:
         case Opcode::LT:
@@ -155,12 +182,30 @@ public:
         return HackSeq();
     }
 private:
+    std::string operation() const
+    {
+        switch (getOpcode())
+        {
+        case Opcode::ADD:
+            return "M=D+M";
+        case Opcode::SUB:
+            return "M=M-D";
+        case Opcode::AND:
+            return "M=D&M";
+        case Opcode::OR:
+            return "M=D|M";
+        }
+
+        assert(0);
+        return "";
+    }
 };
 
 class MemAccess : public Instruction
 {
 public:
-    explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx, std::string Filename) :
+    explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx,
+        const std::string &Filename) :
         Instruction(Op), m_Seg(Seg), m_Idx(Idx), m_Filename(Filename) {}
 
     HackSeq emit() const override
@@ -179,9 +224,9 @@ public:
     }
 
 private:
-    MemorySegment m_Seg;
-    unsigned      m_Idx;
-    std::string   m_Filename;
+    const MemorySegment m_Seg;
+    const unsigned      m_Idx;
+    const std::string   &m_Filename;
 
     std::string getPointer() const
     {
