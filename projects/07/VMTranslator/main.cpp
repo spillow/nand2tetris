@@ -85,6 +85,20 @@ MemorySegment getSegmentFromString(const std::string &Name)
     return I->second;
 }
 
+class Context
+{
+public:
+    Context() : m_Num(0) {}
+    std::string genSym()
+    {
+        auto Sym = "$sym." + std::to_string(m_Num);
+        m_Num++;
+        return Sym;
+    }
+private:
+    unsigned m_Num;
+};
+
 typedef std::string HackInst;
 typedef std::vector<HackInst> HackSeq;
 
@@ -115,21 +129,23 @@ public:
 class Instruction
 {
 public:
-    explicit Instruction(Opcode Op) : m_Opcode(Op) {}
+    explicit Instruction(Context &C, Opcode Op) : m_Opcode(Op), Ctx(C) {}
 
     Opcode getOpcode() const { return m_Opcode; }
-    virtual HackSeq emit() const = 0;
+    Context& getContext() { return Ctx; }
+    virtual HackSeq emit() = 0;
 private:
     const Opcode m_Opcode;
+    Context &Ctx;
 };
 
 class ArithBool : public Instruction
 {
 public:
-    explicit ArithBool(Opcode Op) :
-        Instruction(Op) {}
+    explicit ArithBool(Context &C, Opcode Op) :
+        Instruction(C, Op) {}
 
-    HackSeq emit() const override
+    HackSeq emit() override
     {
         switch (getOpcode())
         {
@@ -173,15 +189,72 @@ public:
         case Opcode::EQ:
         case Opcode::GT:
         case Opcode::LT:
-            break;
+        {
+            auto TrueSym = getContext().genSym();
+            auto JoinSym = getContext().genSym();
+            return {
+                // SP--
+                "@SP",
+                "M=M-1",
+                // y = *SP
+                "A=M",
+                "D=M",
+                // SP--
+                "@SP",
+                "M=M-1",
+                // *SP = *SP - y
+                "A=M",
+                "D=M-D",
+                // *SP;comp (TRUE)
+                "@TRUE" + TrueSym,
+                "D;" + comparison(),
+                // *SP = 0
+                "@SP",
+                "A=M",
+                "M=0",
+                // goto JOIN
+                "@JOIN" + JoinSym,
+                "0;JMP",
+                // (TRUE)
+                "(TRUE" + TrueSym + ")",
+                // *SP = -1
+                "@SP",
+                "A=M",
+                "M=-1",
+                // (JOIN)
+                "(JOIN" + JoinSym + ")",
+                // SP++
+                "@SP",
+                "M=M+1"
+            };
+        }
         default:
             assert(0 && "unknown arith/bool opcode!");
             break;
         }
 
+        assert(0);
         return HackSeq();
     }
 private:
+    std::string comparison() const
+    {
+        switch (getOpcode())
+        {
+        case Opcode::EQ:
+            return "JEQ";
+        case Opcode::GT:
+            return "JGT";
+        case Opcode::LT:
+            return "JLT";
+        default:
+            break;
+        }
+
+        assert(0);
+        return "";
+    }
+
     std::string operation() const
     {
         switch (getOpcode())
@@ -204,11 +277,11 @@ private:
 class MemAccess : public Instruction
 {
 public:
-    explicit MemAccess(Opcode Op, MemorySegment Seg, unsigned Idx,
+    explicit MemAccess(Context &C, Opcode Op, MemorySegment Seg, unsigned Idx,
         const std::string &Filename) :
-        Instruction(Op), m_Seg(Seg), m_Idx(Idx), m_Filename(Filename) {}
+        Instruction(C, Op), m_Seg(Seg), m_Idx(Idx), m_Filename(Filename) {}
 
-    HackSeq emit() const override
+    HackSeq emit() override
     {
         switch (getOpcode())
         {
@@ -429,7 +502,7 @@ std::vector<std::string> tokens(const std::string& S)
 
 typedef std::vector<std::unique_ptr<Instruction>> VMInstColl;
 
-VMInstColl parse(const std::vector<std::string>& Lines, const std::string &Filename)
+VMInstColl parse(Context &C, const std::vector<std::string>& Lines, const std::string &Filename)
 {
     VMInstColl Insts;
     for (auto &L : Lines)
@@ -443,14 +516,14 @@ VMInstColl parse(const std::vector<std::string>& Lines, const std::string &Filen
 
         if (isArithBool(Op))
         {
-            Insts.push_back(std::make_unique<ArithBool>(Op));
+            Insts.push_back(std::make_unique<ArithBool>(C, Op));
         }
         else if (isMemAccess(Op))
         {
             assert(Tokens.size() == 3 && "wrong number of args to push/pop!");
             auto Seg = getSegmentFromString(Tokens[1]);
             auto Idx = std::stoi(Tokens[2]);
-            Insts.push_back(std::make_unique<MemAccess>(Op, Seg, Idx, Filename));
+            Insts.push_back(std::make_unique<MemAccess>(C, Op, Seg, Idx, Filename));
         }
     }
 
@@ -496,9 +569,11 @@ int main(int argc, char **argv)
     const char *Filepath = argv[1];
     const char *Output   = argv[2];
 
+    Context Ctx;
+
     auto Lines = getLines(Filepath);
     auto Filename = getFilename(Filepath);
-    auto Instructions = parse(Lines, Filename);
+    auto Instructions = parse(Ctx, Lines, Filename);
 
     auto HackInsts = translate(Instructions);
 
