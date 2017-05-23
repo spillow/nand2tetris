@@ -103,8 +103,6 @@ public:
             return "@THIS";
         case MemorySegment::THAT:
             return "@THAT";
-        case MemorySegment::TEMP:
-            return "@5";
         default:
             break;
         }
@@ -144,8 +142,10 @@ public:
                 "@SP",
                 "M=M-1",
                 // y = *SP
+                "A=M",
                 "D=M",
                 // SP--
+                "@SP",
                 "M=M-1",
                 // *SP = *SP op y
                 "A=M",
@@ -277,11 +277,26 @@ private:
                 "@SP",
                 "M=M+1"
             };
+        case MemorySegment::TEMP:
+            return {
+                // addr = 5 + i
+                "@" + std::to_string(m_Idx),
+                "D=A",
+                "@5",
+                "A=D+A",
+                // *SP = *addr
+                "D=M",
+                "@SP",
+                "A=M",
+                "M=D",
+                // SP++
+                "@SP",
+                "M=M+1"
+            };
         case MemorySegment::LOCAL:
         case MemorySegment::ARGUMENT:
         case MemorySegment::THIS:
         case MemorySegment::THAT:
-        case MemorySegment::TEMP:
             return {
                 // addr = segmentPointer + i
                 "@" + std::to_string(m_Idx),
@@ -333,11 +348,29 @@ private:
                 "@" + getPointer(),
                 "M=D"
             };
+        case MemorySegment::TEMP:
+            return {
+                // addr = 5 + i
+                "@" + std::to_string(m_Idx),
+                "D=A",
+                "@5",
+                "D=D+A",
+                "@R13",
+                "M=D",
+                // SP--
+                "@SP",
+                "M=M-1",
+                // *addr = *SP
+                "A=M",
+                "D=M",
+                "@R13",
+                "A=M",
+                "M=D"
+            };
         case MemorySegment::LOCAL:
         case MemorySegment::ARGUMENT:
         case MemorySegment::THIS:
         case MemorySegment::THAT:
-        case MemorySegment::TEMP:
             return {
                 // addr = segmentPointer + i
                 "@" + std::to_string(m_Idx),
@@ -351,6 +384,7 @@ private:
                 "@SP",
                 "M=M-1",
                 // *addr = *SP
+                "A=M",
                 "D=M",
                 "@R13",
                 "A=M",
