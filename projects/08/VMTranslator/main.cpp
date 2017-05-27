@@ -596,11 +596,11 @@ std::vector<std::string> tokens(const std::string& Line)
     return Words;
 }
 
-typedef std::vector<std::unique_ptr<Value>> VMValueColl;
+typedef std::vector<std::unique_ptr<Value>> VMValueSeq;
 
-VMValueColl parse(Context &C, const std::vector<std::string>& Lines, const std::string &Filename)
+VMValueSeq parse(Context &C, const std::vector<std::string>& Lines, const std::string &Filename)
 {
-    VMValueColl Values;
+    VMValueSeq Values;
     for (auto &L : Lines)
     {
         auto Tokens = tokens(L);
@@ -632,7 +632,7 @@ VMValueColl parse(Context &C, const std::vector<std::string>& Lines, const std::
     return Values;
 }
 
-HackSeq translate(const VMValueColl &Values)
+HackSeq translate(const VMValueSeq &Values)
 {
     HackSeq HackInsts;
     for (auto &V : Values)
