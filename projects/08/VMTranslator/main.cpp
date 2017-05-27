@@ -19,7 +19,10 @@ enum class Opcode
     OR,
     NOT,
     POP,
-    PUSH
+    PUSH,
+    LABEL,
+    GOTO,
+    IF_GOTO
 };
 
 enum class MemorySegment
@@ -36,7 +39,7 @@ enum class MemorySegment
 
 bool isArithBool(Opcode Op)
 {
-    return Op < Opcode::POP;
+    return Op >= Opcode::ADD && Op <= Opcode::NOT;
 }
 
 bool isMemAccess(Opcode Op)
@@ -44,19 +47,27 @@ bool isMemAccess(Opcode Op)
     return Op == Opcode::POP || Op == Opcode::PUSH;
 }
 
+bool isProgFlow(Opcode Op)
+{
+    return Op >= Opcode::LABEL && Op <= Opcode::IF_GOTO;
+}
+
 static const std::unordered_map<std::string, Opcode> OpcodeMap =
 {
-    { "add",  Opcode::ADD  },
-    { "sub",  Opcode::SUB  },
-    { "neg",  Opcode::NEG  },
-    { "eq",   Opcode::EQ   },
-    { "gt",   Opcode::GT   },
-    { "lt",   Opcode::LT   },
-    { "and",  Opcode::AND  },
-    { "or",   Opcode::OR   },
-    { "not",  Opcode::NOT  },
-    { "pop",  Opcode::POP  },
-    { "push", Opcode::PUSH },
+    { "add",     Opcode::ADD     },
+    { "sub",     Opcode::SUB     },
+    { "neg",     Opcode::NEG     },
+    { "eq",      Opcode::EQ      },
+    { "gt",      Opcode::GT      },
+    { "lt",      Opcode::LT      },
+    { "and",     Opcode::AND     },
+    { "or",      Opcode::OR      },
+    { "not",     Opcode::NOT     },
+    { "pop",     Opcode::POP     },
+    { "push",    Opcode::PUSH    },
+    { "label",   Opcode::LABEL   },
+    { "goto",    Opcode::GOTO    },
+    { "if-goto", Opcode::IF_GOTO },
 };
 
 Opcode getOpcodeFromString(const std::string &Name)
@@ -146,6 +157,8 @@ public:
 
     Opcode getOpcode() const { return m_Opcode; }
     const Function* getParent() const { return m_Func; }
+
+    std::string getFuncName() const;
 private:
     const Opcode m_Opcode;
     const Function *m_Func;
@@ -160,7 +173,7 @@ public:
         m_Insts.push_back(std::move(Inst));
     }
 
-    std::string getName() { return m_Name; }
+    std::string getName() const { return m_Name; }
 
     HackSeq emit() override
     {
@@ -169,13 +182,42 @@ public:
     }
 private:
     std::vector<std::unique_ptr<Instruction>> m_Insts;
-    std::string m_Name;
+    const std::string m_Name;
+};
+
+std::string Instruction::getFuncName() const
+{
+    return getParent() ? getParent()->getName() : "";
+}
+
+class ProgFlow : public Instruction
+{
+public:
+    explicit ProgFlow(Context &C, Opcode Op, std::string LabelName, const Function *Func) :
+        Instruction(C, Op, Func), m_LabelName(LabelName) {}
+
+    HackSeq emit() override
+    {
+        switch (getOpcode())
+        {
+        case Opcode::LABEL:
+        case Opcode::GOTO:
+        case Opcode::IF_GOTO:
+            break;
+        default:
+            break;
+        }
+        assert(0);
+        return HackSeq();
+    }
+private:
+    const std::string m_LabelName;
 };
 
 class ArithBool : public Instruction
 {
 public:
-    explicit ArithBool(Context &C, Opcode Op, Function *Func) :
+    explicit ArithBool(Context &C, Opcode Op, const Function *Func) :
         Instruction(C, Op, Func) {}
 
     HackSeq emit() override
@@ -557,6 +599,12 @@ VMValueColl parse(Context &C, const std::vector<std::string>& Lines, const std::
             auto Seg = getSegmentFromString(Tokens[1]);
             auto Idx = std::stoi(Tokens[2]);
             Values.push_back(std::make_unique<MemAccess>(C, Op, Seg, Idx, Filename, nullptr));
+        }
+        else if (isProgFlow(Op))
+        {
+            assert(Tokens.size() == 2 && "wrong number of args to flow inst!");
+            std::string LabelName = Tokens[1];
+            Values.push_back(std::make_unique<ProgFlow>(C, Op, LabelName, nullptr));
         }
     }
 
