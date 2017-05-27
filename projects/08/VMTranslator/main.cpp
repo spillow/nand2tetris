@@ -159,6 +159,7 @@ public:
     const Function* getParent() const { return m_Func; }
 
     std::string getFuncName() const;
+    std::string getQualLabelName(const std::string &LabelName);
 private:
     const Opcode m_Opcode;
     const Function *m_Func;
@@ -185,6 +186,11 @@ private:
     const std::string m_Name;
 };
 
+std::string Instruction::getQualLabelName(const std::string &LabelName)
+{
+    return getFuncName() + "$" + LabelName;
+}
+
 std::string Instruction::getFuncName() const
 {
     return getParent() ? getParent()->getName() : "";
@@ -201,9 +207,24 @@ public:
         switch (getOpcode())
         {
         case Opcode::LABEL:
+            return { "(" + getQualLabelName(m_LabelName) + ")" };
         case Opcode::GOTO:
+            return {
+                "@" + getQualLabelName(m_LabelName),
+                "0;JMP"
+            };
         case Opcode::IF_GOTO:
-            break;
+            return {
+                // SP--
+                "@SP",
+                "M=M-1",
+                // x = *SP
+                "A=M",
+                "D=M",
+                // if (x) goto label
+                "@" + getQualLabelName(m_LabelName),
+                "D;JNE"
+            };
         default:
             break;
         }
@@ -556,12 +577,12 @@ std::vector<std::string> getLines(const std::string &Filename)
     return Lines;
 }
 
-std::vector<std::string> tokens(const std::string& S)
+std::vector<std::string> tokens(const std::string& Line)
 {
-    std::regex Comment(R"(^\s*//)");
-
-    if (std::regex_search(S, Comment))
-        return std::vector<std::string>();
+    auto Pos = Line.find("//");
+    std::string S = (Pos == std::string::npos) ?
+        Line :
+        Line.substr(0, Pos);
 
     std::regex NonSpace(R"(\S+)");
 
