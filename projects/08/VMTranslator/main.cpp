@@ -126,24 +126,57 @@ public:
     }
 };
 
-class Instruction
+class Value
 {
 public:
-    explicit Instruction(Context &C, Opcode Op) : m_Opcode(Op), Ctx(C) {}
+    explicit Value(Context &C) : Ctx(C) {}
+    virtual HackSeq emit() = 0;
+    Context& getContext() { return Ctx; }
+private:
+    Context &Ctx;
+};
+
+class Function;
+
+class Instruction : public Value
+{
+public:
+    explicit Instruction(Context &C, Opcode Op, const Function *Func) :
+        Value(C), m_Opcode(Op), m_Func(Func) {}
 
     Opcode getOpcode() const { return m_Opcode; }
-    Context& getContext() { return Ctx; }
-    virtual HackSeq emit() = 0;
+    const Function* getParent() const { return m_Func; }
 private:
     const Opcode m_Opcode;
-    Context &Ctx;
+    const Function *m_Func;
+};
+
+class Function : public Value
+{
+public:
+    explicit Function(Context &C, std::string Name) : Value(C), m_Name(Name) {}
+    void addInst(std::unique_ptr<Instruction> Inst)
+    {
+        m_Insts.push_back(std::move(Inst));
+    }
+
+    std::string getName() { return m_Name; }
+
+    HackSeq emit() override
+    {
+        assert(0);
+        return HackSeq();
+    }
+private:
+    std::vector<std::unique_ptr<Instruction>> m_Insts;
+    std::string m_Name;
 };
 
 class ArithBool : public Instruction
 {
 public:
-    explicit ArithBool(Context &C, Opcode Op) :
-        Instruction(C, Op) {}
+    explicit ArithBool(Context &C, Opcode Op, Function *Func) :
+        Instruction(C, Op, Func) {}
 
     HackSeq emit() override
     {
@@ -278,8 +311,8 @@ class MemAccess : public Instruction
 {
 public:
     explicit MemAccess(Context &C, Opcode Op, MemorySegment Seg, unsigned Idx,
-        const std::string &Filename) :
-        Instruction(C, Op), m_Seg(Seg), m_Idx(Idx), m_Filename(Filename) {}
+        const std::string &Filename, const Function *Func) :
+        Instruction(C, Op, Func), m_Seg(Seg), m_Idx(Idx), m_Filename(Filename) {}
 
     HackSeq emit() override
     {
@@ -500,11 +533,11 @@ std::vector<std::string> tokens(const std::string& S)
     return Words;
 }
 
-typedef std::vector<std::unique_ptr<Instruction>> VMInstColl;
+typedef std::vector<std::unique_ptr<Value>> VMValueColl;
 
-VMInstColl parse(Context &C, const std::vector<std::string>& Lines, const std::string &Filename)
+VMValueColl parse(Context &C, const std::vector<std::string>& Lines, const std::string &Filename)
 {
-    VMInstColl Insts;
+    VMValueColl Values;
     for (auto &L : Lines)
     {
         auto Tokens = tokens(L);
@@ -516,26 +549,26 @@ VMInstColl parse(Context &C, const std::vector<std::string>& Lines, const std::s
 
         if (isArithBool(Op))
         {
-            Insts.push_back(std::make_unique<ArithBool>(C, Op));
+            Values.push_back(std::make_unique<ArithBool>(C, Op, nullptr));
         }
         else if (isMemAccess(Op))
         {
             assert(Tokens.size() == 3 && "wrong number of args to push/pop!");
             auto Seg = getSegmentFromString(Tokens[1]);
             auto Idx = std::stoi(Tokens[2]);
-            Insts.push_back(std::make_unique<MemAccess>(C, Op, Seg, Idx, Filename));
+            Values.push_back(std::make_unique<MemAccess>(C, Op, Seg, Idx, Filename, nullptr));
         }
     }
 
-    return Insts;
+    return Values;
 }
 
-HackSeq translate(const VMInstColl &Insts)
+HackSeq translate(const VMValueColl &Values)
 {
     HackSeq HackInsts;
-    for (auto &I : Insts)
+    for (auto &V : Values)
     {
-        auto Trans = I->emit();
+        auto Trans = V->emit();
         HackInsts.insert(std::end(HackInsts), std::begin(Trans), std::end(Trans));
     }
 
