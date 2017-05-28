@@ -189,6 +189,7 @@ public:
         // repeat nVars times:
         // push 0
         HackSeq Insts {
+            "// Begin Function: " + m_Name,
             "(" + m_Name + ")",
             "@LCL",
             "A=M",
@@ -199,12 +200,19 @@ public:
             Insts.push_back("A=A+1");
         }
 
+        // Update stack pointer
+        Insts.push_back("D=A");
+        Insts.push_back("@SP");
+        Insts.push_back("M=D");
+
         // Now emit all of the instructions in the function
         for (auto &I : m_Insts)
         {
             auto Expansion = I->emit();
             Insts.insert(Insts.end(), Expansion.begin(), Expansion.end());
         }
+
+        Insts.push_back("// End Function: " + m_Name);
 
         return Insts;
     }
@@ -234,6 +242,7 @@ public:
         };
 
         HackSeq Insts {
+            "// return",
             // frame = LCL            // frame is a temp. variable
             "@LCL",
             "A=M",
@@ -286,14 +295,78 @@ class Call : public Instruction
 {
 public:
     Call(Context &C, std::string Name, unsigned NumArgs, Function *Func) :
-        Instruction(C, Opcode::CALL, Func), m_Name(Name), m_NumArgs(NumArgs) {}
+        Instruction(C, Opcode::CALL, Func), m_FuncName(Name), m_NumArgs(NumArgs) {}
     HackSeq emit() override
     {
-        assert(0);
-        return HackSeq();
+        auto ReturnLabel = getQualLabelName("returnAddress") + getContext().genSym();
+        return{
+            // push returnAddress   // saves the return address
+            "@" + ReturnLabel,
+            "D=A",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            // push LCL             // saves the LCL of f
+            "@LCL",
+            "A=M",
+            "D=A",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            // push ARG             // saves the ARG of f
+            "@ARG",
+            "A=M",
+            "D=A",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            // push THIS            // saves the THIS of f
+            "@THIS",
+            "A=M",
+            "D=A",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            // push THAT            // saves the THAT of f
+            "@THAT",
+            "A=M",
+            "D=A",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            // ARG = SP - nArgs - 5 // repositions SP for g
+            "@SP",
+            "D=M",
+            "@" + std::to_string(m_NumArgs),
+            "D=D-A",
+            "@5",
+            "D=D-A",
+            "@ARG",
+            "M=D",
+            // LCL = SP             // repositions LCL for g
+            "@SP",
+            "D=M",
+            "@LCL",
+            "M=D",
+            // goto g               // transfers control to g
+            "@" + m_FuncName,
+            "0;JMP",
+            // returnAddress :      // the generated symbol
+            "(" + ReturnLabel + ")"
+        };
     }
 private:
-    const std::string m_Name;
+    const std::string m_FuncName;
     const unsigned m_NumArgs;
 };
 
@@ -750,7 +823,9 @@ VMValueSeq parse(Context &C, const std::vector<std::string>& Lines, const std::s
         }
         else if (Op == Opcode::FUNCTION)
         {
-            assert(CurrFunc == nullptr && "function inside function?");
+            if (CurrFunc)
+                Values.push_back(std::move(CurrFunc));
+
             assert(Tokens.size() == 3 && "wrong number of args to function inst!");
 
             std::string FuncName = Tokens[1];
@@ -768,13 +843,15 @@ VMValueSeq parse(Context &C, const std::vector<std::string>& Lines, const std::s
         else if (Op == Opcode::RETURN)
         {
             addInst(std::make_unique<Return>(C, CurrFunc.get()));
-            Values.push_back(std::move(CurrFunc));
         }
         else
         {
             assert(0 && "unknown opcode!");
         }
     }
+
+    if (CurrFunc)
+        Values.push_back(std::move(CurrFunc));
 
     return Values;
 }
