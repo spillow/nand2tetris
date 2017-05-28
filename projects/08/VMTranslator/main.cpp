@@ -185,8 +185,28 @@ public:
 
     HackSeq emit() override
     {
-        assert(0);
-        return HackSeq();
+        // g:
+        // repeat nVars times:
+        // push 0
+        HackSeq Insts {
+            "(" + m_Name + ")",
+            "@LCL",
+            "A=M",
+        };
+        for (unsigned i = 0; i < m_NumLocalVars; i++)
+        {
+            Insts.push_back("M=0");
+            Insts.push_back("A=A+1");
+        }
+
+        // Now emit all of the instructions in the function
+        for (auto &I : m_Insts)
+        {
+            auto Expansion = I->emit();
+            Insts.insert(Insts.end(), Expansion.begin(), Expansion.end());
+        }
+
+        return Insts;
     }
 private:
     std::vector<std::unique_ptr<Instruction>> m_Insts;
@@ -200,8 +220,65 @@ public:
     Return(Context &C, const Function *Func) : Instruction(C, Opcode::RETURN, Func) {}
     HackSeq emit() override
     {
-        assert(0);
-        return HackSeq();
+        auto restoreReg = [](const std::string &Reg, unsigned Offset) -> HackSeq
+        {
+            return {
+                "@R13",
+                "D=M",
+                "@" + std::to_string(Offset),
+                "A=D-A",
+                "D=M",
+                "@" + Reg,
+                "M=D",
+            };
+        };
+
+        HackSeq Insts {
+            // frame = LCL            // frame is a temp. variable
+            "@LCL",
+            "A=M",
+            "D=A",
+            "@R13", // frame
+            "M=D",
+            // retAddr = *(frame - 5) // retAddr is a temp. variable
+            "@5",
+            "A=D-A",
+            "D=M",
+            "@R14", // retAddr
+            "M=D",
+            // *ARG = pop             // repositions the return value
+            "@SP",
+            "M=M-1",
+            "A=M",
+            "D=M",
+            "@ARG",
+            "A=M",
+            "M=D",
+                                      // for the caller
+            // SP = ARG + 1           // restores the caller’s SP
+            "D=A+1",
+            "@SP",
+            "M=D",
+        };
+        // THAT = *(frame - 1)    // restores the caller’s THAT
+        auto Seq = restoreReg("THAT", 1);
+        Insts.insert(Insts.end(), Seq.begin(), Seq.end());
+        // THIS = *(frame - 2)    // restores the caller’s THIS
+        Seq = restoreReg("THIS", 2);
+        Insts.insert(Insts.end(), Seq.begin(), Seq.end());
+        // ARG = *(frame - 3)     // restores the caller’s ARG
+        Seq = restoreReg("ARG", 3);
+        Insts.insert(Insts.end(), Seq.begin(), Seq.end());
+        //LCL = *(frame - 4)      // restores the caller’s LCL
+        Seq = restoreReg("LCL", 4);
+        Insts.insert(Insts.end(), Seq.begin(), Seq.end());
+
+        // goto retAddr           // goto returnAddress
+        Insts.push_back("@R14");
+        Insts.push_back("A=M");
+        Insts.push_back("0;JMP");
+
+        return Insts;
     }
 };
 
@@ -416,9 +493,9 @@ public:
         switch (getOpcode())
         {
         case Opcode::POP:
-            return emitPop();
+            return emitPop(m_Seg, m_Idx, m_Filename);
         case Opcode::PUSH:
-            return emitPush();
+            return emitPush(m_Seg, m_Idx, m_Filename);
         default:
             assert(0 && "unknown push/pop opcode!");
             break;
@@ -426,24 +503,14 @@ public:
         return HackSeq();
     }
 
-private:
-    const MemorySegment m_Seg;
-    const unsigned      m_Idx;
-    const std::string   &m_Filename;
-
-    std::string getPointer() const
+    static HackSeq emitPush(MemorySegment Seg, unsigned Idx, const std::string Filename = "")
     {
-        return (m_Idx == 0) ? "THIS" : "THAT";
-    }
-
-    HackSeq emitPush() const
-    {
-        switch (m_Seg)
+        switch (Seg)
         {
         case MemorySegment::CONSTANT:
-            return {
+            return{
                 // *SP = i
-                "@" + std::to_string(m_Idx),
+                "@" + std::to_string(Idx),
                 "D=A",
                 "@SP",
                 "A=M",
@@ -453,9 +520,9 @@ private:
                 "M=M+1"
             };
         case MemorySegment::STATIC:
-            return {
+            return{
                 // addr = <filename>.idx
-                "@" + m_Filename + "." + std::to_string(m_Idx),
+                "@" + Filename + "." + std::to_string(Idx),
                 // *SP = *addr
                 "D=M",
                 "@SP",
@@ -468,10 +535,10 @@ private:
         case MemorySegment::POINTER:
             // accessing pointer 0 should result in accessing THIS
             // accessing pointer 1 should result in accessing THAT
-            assert(m_Idx == 0 || m_Idx == 1);
-            return {
+            assert(Idx == 0 || Idx == 1);
+            return{
                 // *SP = THIS/THAT
-                "@" + getPointer(),
+                "@" + getPointer(Idx),
                 "D=M",
                 "@SP",
                 "A=M",
@@ -481,9 +548,9 @@ private:
                 "M=M+1"
             };
         case MemorySegment::TEMP:
-            return {
+            return{
                 // addr = 5 + i
-                "@" + std::to_string(m_Idx),
+                "@" + std::to_string(Idx),
                 "D=A",
                 "@5",
                 "A=D+A",
@@ -500,11 +567,11 @@ private:
         case MemorySegment::ARGUMENT:
         case MemorySegment::THIS:
         case MemorySegment::THAT:
-            return {
+            return{
                 // addr = segmentPointer + i
-                "@" + std::to_string(m_Idx),
+                "@" + std::to_string(Idx),
                 "D=A",
-                Hack::getSegment(m_Seg),
+                Hack::getSegment(Seg),
                 "A=M",
                 "A=D+A",
                 // *SP = *addr
@@ -522,13 +589,13 @@ private:
         return HackSeq();
     }
 
-    HackSeq emitPop() const
+    static HackSeq emitPop(MemorySegment Seg, unsigned Idx, const std::string Filename = "")
     {
-        switch (m_Seg)
+        switch (Seg)
         {
             // No constant!
         case MemorySegment::STATIC:
-            return {
+            return{
                 // SP--
                 "@SP",
                 "M=M-1",
@@ -536,25 +603,25 @@ private:
                 "A=M",
                 "D=M",
                 // addr = <filename>.idx
-                "@" + m_Filename + "." + std::to_string(m_Idx),
+                "@" + Filename + "." + std::to_string(Idx),
                 // *addr = *SP
                 "M=D"
             };
         case MemorySegment::POINTER:
-            return {
+            return{
                 // SP--
                 "@SP",
                 "M=M-1",
                 "A=M",
                 "D=M",
                 // THIS/THAT = *SP
-                "@" + getPointer(),
+                "@" + getPointer(Idx),
                 "M=D"
             };
         case MemorySegment::TEMP:
-            return {
+            return{
                 // addr = 5 + i
-                "@" + std::to_string(m_Idx),
+                "@" + std::to_string(Idx),
                 "D=A",
                 "@5",
                 "D=D+A",
@@ -574,11 +641,11 @@ private:
         case MemorySegment::ARGUMENT:
         case MemorySegment::THIS:
         case MemorySegment::THAT:
-            return {
+            return{
                 // addr = segmentPointer + i
-                "@" + std::to_string(m_Idx),
+                "@" + std::to_string(Idx),
                 "D=A",
-                Hack::getSegment(m_Seg),
+                Hack::getSegment(Seg),
                 "A=M",
                 "D=D+A",
                 "@R13",
@@ -597,6 +664,16 @@ private:
 
         assert(0);
         return HackSeq();
+    }
+
+private:
+    const MemorySegment m_Seg;
+    const unsigned      m_Idx;
+    const std::string   &m_Filename;
+
+    static std::string getPointer(unsigned Idx)
+    {
+        return (Idx == 0) ? "THIS" : "THAT";
     }
 };
 
