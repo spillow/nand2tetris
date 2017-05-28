@@ -22,7 +22,10 @@ enum class Opcode
     PUSH,
     LABEL,
     GOTO,
-    IF_GOTO
+    IF_GOTO,
+    FUNCTION,
+    CALL,
+    RETURN
 };
 
 enum class MemorySegment
@@ -54,20 +57,23 @@ bool isProgFlow(Opcode Op)
 
 static const std::unordered_map<std::string, Opcode> OpcodeMap =
 {
-    { "add",     Opcode::ADD     },
-    { "sub",     Opcode::SUB     },
-    { "neg",     Opcode::NEG     },
-    { "eq",      Opcode::EQ      },
-    { "gt",      Opcode::GT      },
-    { "lt",      Opcode::LT      },
-    { "and",     Opcode::AND     },
-    { "or",      Opcode::OR      },
-    { "not",     Opcode::NOT     },
-    { "pop",     Opcode::POP     },
-    { "push",    Opcode::PUSH    },
-    { "label",   Opcode::LABEL   },
-    { "goto",    Opcode::GOTO    },
-    { "if-goto", Opcode::IF_GOTO },
+    { "add",      Opcode::ADD      },
+    { "sub",      Opcode::SUB      },
+    { "neg",      Opcode::NEG      },
+    { "eq",       Opcode::EQ       },
+    { "gt",       Opcode::GT       },
+    { "lt",       Opcode::LT       },
+    { "and",      Opcode::AND      },
+    { "or",       Opcode::OR       },
+    { "not",      Opcode::NOT      },
+    { "pop",      Opcode::POP      },
+    { "push",     Opcode::PUSH     },
+    { "label",    Opcode::LABEL    },
+    { "goto",     Opcode::GOTO     },
+    { "if-goto",  Opcode::IF_GOTO  },
+    { "function", Opcode::FUNCTION },
+    { "call",     Opcode::CALL     },
+    { "return",   Opcode::RETURN   },
 };
 
 Opcode getOpcodeFromString(const std::string &Name)
@@ -168,8 +174,9 @@ private:
 class Function : public Value
 {
 public:
-    explicit Function(Context &C, std::string Name) : Value(C), m_Name(Name) {}
-    void addInst(std::unique_ptr<Instruction> Inst)
+    explicit Function(Context &C, std::string Name, unsigned NumLocalVars)
+        : Value(C), m_Name(Name), m_NumLocalVars(NumLocalVars) {}
+    void addInst(std::unique_ptr<Instruction> &&Inst)
     {
         m_Insts.push_back(std::move(Inst));
     }
@@ -184,6 +191,33 @@ public:
 private:
     std::vector<std::unique_ptr<Instruction>> m_Insts;
     const std::string m_Name;
+    const unsigned m_NumLocalVars;
+};
+
+class Return : public Instruction
+{
+public:
+    Return(Context &C, const Function *Func) : Instruction(C, Opcode::RETURN, Func) {}
+    HackSeq emit() override
+    {
+        assert(0);
+        return HackSeq();
+    }
+};
+
+class Call : public Instruction
+{
+public:
+    Call(Context &C, std::string Name, unsigned NumArgs, Function *Func) :
+        Instruction(C, Opcode::CALL, Func), m_Name(Name), m_NumArgs(NumArgs) {}
+    HackSeq emit() override
+    {
+        assert(0);
+        return HackSeq();
+    }
+private:
+    const std::string m_Name;
+    const unsigned m_NumArgs;
 };
 
 std::string Instruction::getQualLabelName(const std::string &LabelName)
@@ -601,6 +635,16 @@ typedef std::vector<std::unique_ptr<Value>> VMValueSeq;
 VMValueSeq parse(Context &C, const std::vector<std::string>& Lines, const std::string &Filename)
 {
     VMValueSeq Values;
+    std::unique_ptr<Function> CurrFunc;
+
+    auto addInst = [&](auto &&V)
+    {
+        if (CurrFunc)
+            CurrFunc->addInst(std::move(V));
+        else
+            Values.push_back(std::move(V));
+    };
+
     for (auto &L : Lines)
     {
         auto Tokens = tokens(L);
@@ -612,20 +656,46 @@ VMValueSeq parse(Context &C, const std::vector<std::string>& Lines, const std::s
 
         if (isArithBool(Op))
         {
-            Values.push_back(std::make_unique<ArithBool>(C, Op, nullptr));
+            addInst(std::make_unique<ArithBool>(C, Op, CurrFunc.get()));
         }
         else if (isMemAccess(Op))
         {
             assert(Tokens.size() == 3 && "wrong number of args to push/pop!");
             auto Seg = getSegmentFromString(Tokens[1]);
             auto Idx = std::stoi(Tokens[2]);
-            Values.push_back(std::make_unique<MemAccess>(C, Op, Seg, Idx, Filename, nullptr));
+            addInst(std::make_unique<MemAccess>(C, Op, Seg, Idx, Filename, CurrFunc.get()));
         }
         else if (isProgFlow(Op))
         {
             assert(Tokens.size() == 2 && "wrong number of args to flow inst!");
             std::string LabelName = Tokens[1];
-            Values.push_back(std::make_unique<ProgFlow>(C, Op, LabelName, nullptr));
+            addInst(std::make_unique<ProgFlow>(C, Op, LabelName, CurrFunc.get()));
+        }
+        else if (Op == Opcode::FUNCTION)
+        {
+            assert(CurrFunc == nullptr && "function inside function?");
+            assert(Tokens.size() == 3 && "wrong number of args to function inst!");
+
+            std::string FuncName = Tokens[1];
+            unsigned NumLocalVars = std::stoi(Tokens[2]);
+            CurrFunc.reset(new Function(C, FuncName, NumLocalVars));
+        }
+        else if (Op == Opcode::CALL)
+        {
+            assert(Tokens.size() == 3 && "wrong number of args to call inst!");
+
+            std::string FuncName = Tokens[1];
+            unsigned NumArgs = std::stoi(Tokens[2]);
+            addInst(std::make_unique<Call>(C, FuncName, NumArgs, CurrFunc.get()));
+        }
+        else if (Op == Opcode::RETURN)
+        {
+            addInst(std::make_unique<Return>(C, CurrFunc.get()));
+            Values.push_back(std::move(CurrFunc));
+        }
+        else
+        {
+            assert(0 && "unknown opcode!");
         }
     }
 
