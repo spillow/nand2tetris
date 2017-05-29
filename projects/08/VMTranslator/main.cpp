@@ -300,6 +300,7 @@ public:
     {
         auto ReturnLabel = getQualLabelName("returnAddress") + getContext().genSym();
         return{
+            "// call " + m_FuncName + " " + std::to_string(m_NumArgs),
             // push returnAddress   // saves the return address
             "@" + ReturnLabel,
             "D=A",
@@ -884,26 +885,51 @@ void outputToFile(const std::string &Output, const HackSeq &Insts)
     }
 }
 
+HackSeq emitBootstrap(Context &Ctx)
+{
+    const unsigned STACK_START_ADDR = 256;
+    HackSeq SPInit = {
+        "@" + std::to_string(STACK_START_ADDR),
+        "D=A",
+        "@SP",
+        "M=D"
+    };
+
+    Call call(Ctx, "Sys.init", 0, nullptr);
+    auto CallCode = call.emit();
+
+    SPInit.insert(std::end(SPInit), std::begin(CallCode), std::end(CallCode));
+    return SPInit;
+}
+
 int main(int argc, char **argv)
 {
-    if (argc != 3)
+    if (argc < 3)
     {
-        std::cout << "Usage: VMTranslator <file.vm> <output.asm>\n";
+        std::cout << "Usage: VMTranslator <file.vm>+ <output.asm>\n";
         return 1;
     }
 
-    const char *Filepath = argv[1];
-    const char *Output   = argv[2];
-
     Context Ctx;
 
-    auto Lines = getLines(Filepath);
-    auto Filename = getFilename(Filepath);
-    auto Instructions = parse(Ctx, Lines, Filename);
+    HackSeq LinkedHackInsts = emitBootstrap(Ctx);
 
-    auto HackInsts = translate(Instructions);
+    for (unsigned i = 1; i < argc - 1; i++)
+    {
+        const char *Filepath = argv[i];
 
-    outputToFile(Output, HackInsts);
+        auto Lines = getLines(Filepath);
+        auto Filename = getFilename(Filepath);
+        auto Instructions = parse(Ctx, Lines, Filename);
+
+        auto HackInsts = translate(Instructions);
+        LinkedHackInsts.insert(
+            std::end(LinkedHackInsts), std::begin(HackInsts), std::end(HackInsts));
+    }
+
+    const char *Output = argv[argc - 1];
+
+    outputToFile(Output, LinkedHackInsts);
 
     return 0;
 }
