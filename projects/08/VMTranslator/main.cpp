@@ -149,6 +149,7 @@ public:
     explicit Value(Context &C) : Ctx(C) {}
     virtual HackSeq emit() = 0;
     Context& getContext() { return Ctx; }
+    virtual ~Value() {}
 private:
     Context &Ctx;
 };
@@ -914,7 +915,7 @@ int main(int argc, char **argv)
 
     HackSeq LinkedHackInsts = emitBootstrap(Ctx);
 
-    for (unsigned i = 1; i < argc - 1; i++)
+    for (int i = 1; i < argc - 1; i++)
     {
         const char *Filepath = argv[i];
 
