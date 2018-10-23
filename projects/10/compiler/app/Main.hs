@@ -1,10 +1,11 @@
 module Main where
 
 import System.Environment
+import Grammar
 import Lib
 
-parse :: String -> Int
-parse text = 3
+parse :: String -> Class
+parse text = Class (Identifier "myclass") [] []
 
 main :: IO ()
 main = do
