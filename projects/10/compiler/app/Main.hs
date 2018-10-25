@@ -1,11 +1,7 @@
 module Main where
 
 import System.Environment
-import Grammar
-import Lib
-
-parse :: String -> Class
-parse text = Class (Identifier "myclass") [] []
+import Parser
 
 main :: IO ()
 main = do
@@ -18,6 +14,6 @@ main = do
         emit :: [String] -> IO ()
         emit paths = do
             texts <- mapM readFile paths
-            let trees = map parse texts
+            let trees = map myparse texts
             mapM_ print trees
             return ()
