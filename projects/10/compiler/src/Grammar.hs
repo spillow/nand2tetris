@@ -9,7 +9,7 @@ type ArrayIdx = Expression
 
 -- Lexical Elements
 newtype Keyword = Keyword { getKeyword :: String } deriving (Show)
-newtype Symbol = Symbol { getSymbol  :: String } deriving (Show)
+newtype Symbol = Symbol { getSymbol  :: Char } deriving (Show)
 newtype IntegerConstant = IntegerConstant { getIntegerConstant :: Integer } deriving (Show)
 newtype StringConstant = StringConstant { getStringConstant :: String } deriving (Show)
 newtype Identifier = Identifier { getIdentifier :: String } deriving (Show)
@@ -35,11 +35,11 @@ data Statement = LetStatement VarName (Maybe ArrayIdx) Expression
                | ReturnStatement (Maybe Expression) deriving (Show)
 
 -- Expressions
-data Expression = Expression Term [Term] deriving (Show)
+data Expression = Expression Term [(Op, Term)] deriving (Show)
 data Term = IC IntegerConstant | SC StringConstant | KC KeywordConstant | VN VarName | VNArr VarName ArrayIdx |
-            SubCall SubroutineCall | TermExp Expression | TermOp UnaryOp Term deriving (Show)
+            SubCall SubroutineCall | ParenExp Expression | TermOp UnaryOp Term deriving (Show)
 data SubroutineCall = FreeCall SubroutineName [Expression]
-                    | ClassCall (Either ClassName VarName) SubroutineName [Expression] deriving (Show)
+                    | ClassCall VarName SubroutineName [Expression] deriving (Show)
 data Op = Plus | Minus | Mult | Divide | BitwiseAnd | BitwiseOr | LessThan | GreaterThan | Equals deriving (Show)
 data UnaryOp = Negate | BitwiseNot deriving (Show)
 data KeywordConstant = True | False | Null | This deriving (Show)
