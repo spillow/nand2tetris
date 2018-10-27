@@ -1,6 +1,6 @@
 module Parser(parseJack) where
 
-import Control.Monad (void)
+import Control.Monad (void, liftM2)
 import Control.Applicative ((<*), (*>))
 import Text.ParserCombinators.Parsec
 import Grammar
@@ -92,10 +92,7 @@ expressionList = expression `sepBy` symbol ','
 
 subroutineCall :: Parser SubroutineCall
 subroutineCall = try freeCall <|> try subCall
-    where freeCall = do
-            name <- subroutineName
-            exprList <- parenExprList
-            return $ FreeCall name exprList
+    where freeCall = liftM2 FreeCall subroutineName parenExprList
           subCall = do
             name <- varName
             symbol '.'
@@ -109,26 +106,13 @@ term = choice [m integerConstant IC, m stringConstant SC,
                SubCall <$> try subroutineCall, VN <$> try varName,
                try parExpr, try termOp]
     where m x y = y <$> try x
-          arrayIdx = do
-            name <- varName
-            expr <- bracketExpr
-            return $ VNArr name expr
+          arrayIdx = liftM2 VNArr varName bracketExpr
           parExpr = ParenExp <$> parenExpr
-          termOp = do
-            i <- unaryOp
-            j <- term
-            return $ TermOp i j
-        
+          termOp = liftM2 TermOp unaryOp term
 
 expression :: Parser Expression
-expression = do
-    i <- term
-    j <- many opTerm
-    return $ Expression i j
-    where opTerm = do
-            o <- op
-            t <- term
-            return (o, t)
+expression = liftM2 Expression term (many opTerm)
+    where opTerm = liftM2 (,) op term
 
 statements :: Parser Statements
 statements = many statement
@@ -138,11 +122,7 @@ statement = choice [letStatement, ifStatement,
                     whileStatement, doStatement, returnStatement]
 
 delimParser :: Char -> Parser a -> Char -> Parser a
-delimParser c1 p c2 = do
-    symbol c1
-    contents <- p
-    symbol c2
-    return contents
+delimParser c1 p c2 = symbol c1 *> p <* symbol c2
 
 bracketExpr    = delimParser '[' expression ']'
 bracedStmts    = delimParser '{' statements '}'
@@ -211,10 +191,7 @@ varDec = do
 
 parameterList :: Parser ParameterList
 parameterList = ParameterList <$> p `sepBy` symbol ','
-    where p = do
-            ty <- typeParse
-            v  <- varName
-            return (ty, v)
+    where p = liftM2 (,) typeParse varName
         
 subroutineBody :: Parser SubroutineBody
 subroutineBody = do
