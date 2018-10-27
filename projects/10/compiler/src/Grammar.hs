@@ -17,7 +17,7 @@ newtype Identifier = Identifier { getIdentifier :: String } deriving (Show)
 -- Program Structure
 data ClassVarType = Static | Field deriving (Show)
 data SubroutineVariety = Constructor | Function | Method deriving (Show)
-data SubroutineType = Void | Type deriving (Show)
+data SubroutineType = Void | SubTy Type deriving (Show)
 
 data Class = Class ClassName [ClassVarDec] [SubroutineDec] deriving (Show)
 data ClassVarDec = ClassVarDec ClassVarType Type [VarName] deriving (Show)
