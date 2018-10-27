@@ -1,7 +1,11 @@
 module Main where
 
 import System.Environment
+import Text.Show.Pretty
 import Parser
+
+handle (Left msg) = print msg
+handle (Right tree) = pPrint tree
 
 main :: IO ()
 main = do
@@ -14,6 +18,6 @@ main = do
         emit :: [String] -> IO ()
         emit paths = do
             texts <- mapM readFile paths
-            let trees = map myparse texts
-            mapM_ print trees
+            let trees = [parseJack file text | (file, text) <- zip paths texts]
+            mapM_ handle trees
             return ()

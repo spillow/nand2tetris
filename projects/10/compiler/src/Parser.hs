@@ -1,6 +1,5 @@
-module Parser(myparse) where
+module Parser(parseJack) where
 
---import Text.Parsec (parse)
 import Control.Monad (void)
 import Control.Applicative ((<*), (*>))
 import Text.ParserCombinators.Parsec
@@ -107,7 +106,7 @@ subroutineCall = try freeCall <|> try subCall
 term :: Parser Term
 term = choice [m integerConstant IC, m stringConstant SC,
                m keywordConstant KC, try arrayIdx,
-               VN <$> try varName, SubCall <$> try subroutineCall,
+               SubCall <$> try subroutineCall, VN <$> try varName,
                try parExpr, try termOp]
     where m x y = y <$> try x
           arrayIdx = do
@@ -200,7 +199,7 @@ parseTyDecls :: Parser (Type, [VarName])
 parseTyDecls = do
     ty <- typeParse
     v1 <- varName
-    vars <- varName `sepBy` symbol ','
+    vars <- many $ symbol ',' *> varName
     symbol ';'
     return (ty, v1:vars)
 
@@ -261,5 +260,5 @@ parseClass = do
 -- parse subroutineCall   "(unknown)" "var . launch(sum + a[i+2], (5+3)*4  , -8 /* some good comments here */, \"filename\" ) // good func"
 -- parse parseClass "(unknown)" "class MyClass { function stuff(int pp) { while ( a < 3 ) { let letter = 3*4; } if (2+2 = 4) { if(1){} }  else { let stuffing = v[3];  } } }"
 
-myparse :: String -> Either String Class
-myparse text = Right $ Class (Identifier "myclass") [] []
+parseJack :: FilePath -> String -> Either ParseError Class
+parseJack = parse parseClass
