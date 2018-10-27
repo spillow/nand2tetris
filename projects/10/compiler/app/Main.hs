@@ -7,17 +7,14 @@ import Parser
 handle (Left msg) = print msg
 handle (Right tree) = pPrint tree
 
-main :: IO ()
+emit :: [String] -> IO ()
+emit paths = do
+    texts <- mapM readFile paths
+    let trees = [parseJack file text | (file, text) <- zip paths texts]
+    mapM_ handle trees
+
 main = do
     args <- getArgs
     if null args
         then putStrLn "compiler: <path to .jack file>+"
         else emit args
-    return ()
-    where
-        emit :: [String] -> IO ()
-        emit paths = do
-            texts <- mapM readFile paths
-            let trees = [parseJack file text | (file, text) <- zip paths texts]
-            mapM_ handle trees
-            return ()
