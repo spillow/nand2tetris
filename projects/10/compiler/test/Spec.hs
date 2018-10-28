@@ -1,6 +1,9 @@
 import Test.Hspec
+import Test.QuickCheck
 import System.FilePath
 import InputHandler
+import RandGrammar
+import qualified Grammar as G
 
 parseTest path =
     it ("Parsing " ++ takeFileName path ++ "...") $
@@ -18,3 +21,9 @@ main = hspec $
         parseTest "../../11/Square/SquareGame.jack"
         parseTest "../../11/ConvertToBin/Main.jack"
         parseTest "../../11/ComplexArrays/Main.jack"
+        it "x + 1 is always greater than x" $
+            property $ \x -> x + 1 > (x :: Int)
+        it "fail keyword test!" $
+            property $ \(G.Keyword s) -> s == "this"
+        it "fail class var type test!" $
+            property $ \ty -> ty == G.Field
