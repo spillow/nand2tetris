@@ -26,6 +26,7 @@ dependencies:
 - pretty-show
 - xml-conduit-writer
 - xml-conduit
+- filepath
 
 library:
   source-dirs: src
@@ -56,3 +57,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - compiler
+    - hspec
