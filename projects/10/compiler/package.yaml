@@ -29,6 +29,9 @@ dependencies:
 
 library:
   source-dirs: src
+  ghc-options:
+  - -W
+  - -Werror
 
 executables:
   compiler-exe:
@@ -38,6 +41,8 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -W
+    - -Werror
     dependencies:
     - compiler
 

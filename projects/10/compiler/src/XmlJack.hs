@@ -2,9 +2,9 @@
 
 module XmlJack where
 
-import Data.Text (Text, pack)
+import Data.Text (pack)
 import Text.XML.Writer
-import Text.XML
+--import Text.XML
 import Grammar
 
 -- xx = renderText (def { rsPretty = Prelude.True }) doc
