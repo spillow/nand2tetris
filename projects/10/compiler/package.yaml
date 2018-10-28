@@ -24,6 +24,8 @@ dependencies:
 - text
 - parsec
 - pretty-show
+- xml-conduit-writer
+- xml-conduit
 
 library:
   source-dirs: src
