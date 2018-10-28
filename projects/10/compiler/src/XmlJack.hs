@@ -7,7 +7,7 @@ import Text.XML.Writer
 import Text.XML
 import Grammar
 
-xx = renderText (def { rsPretty = Prelude.True }) doc
+-- xx = renderText (def { rsPretty = Prelude.True }) doc
 
 mytest = document "tokens" $ do
     toXML (Keyword "class")
