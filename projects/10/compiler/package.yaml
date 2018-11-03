@@ -27,6 +27,8 @@ dependencies:
 - xml-conduit-writer
 - xml-conduit
 - filepath
+- mtl
+- dlist
 
 library:
   source-dirs: src
@@ -59,3 +61,4 @@ tests:
     - compiler
     - hspec
     - QuickCheck
+    - checkers
