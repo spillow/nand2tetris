@@ -1,4 +1,5 @@
-module Parser(parseJack) where
+--module Parser(parseJack, parseJackSnippet) where
+module Parser where
 
 import Control.Monad (void, liftM2)
 import Control.Applicative ((<*), (*>))
@@ -234,8 +235,8 @@ parseClass = do
     symbol '}'
     return $ Class name varDecs subDecs
 
--- parse subroutineCall   "(unknown)" "var . launch(sum + a[i+2], (5+3)*4  , -8 /* some good comments here */, \"filename\" ) // good func"
--- parse parseClass "(unknown)" "class MyClass { function stuff(int pp) { while ( a < 3 ) { let letter = 3*4; } if (2+2 = 4) { if(1){} }  else { let stuffing = v[3];  } } }"
+parseJackSnippet :: String -> Parser a -> Either ParseError a
+parseJackSnippet s p = parse p "(unknown)" s
 
 parseJack :: FilePath -> String -> Either ParseError Class
 parseJack = parse parseClass

@@ -3,10 +3,13 @@ module CodeGen where
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
-import Data.DList
+import Data.DList (fromList, toList, DList(..), singleton)
+import Data.Char
+import Data.List
 
---import Grammar
+import Grammar
 import Instructions
+import Parser
 
 type ErrorMsg = String
 type Program = [Instruction]
@@ -27,12 +30,12 @@ addInst i = tell $ singleton i
 addInsts :: [Instruction] -> CodeGen ()
 addInsts xs = tell $ fromList xs
 
-genLabel :: String -> CodeGen String
+genLabel :: String -> CodeGen Instruction
 genLabel prefix = do
     s <- get
     let idx = labelIndex s
     put s { labelIndex = idx + 1}
-    return $ prefix ++ show idx
+    return $ label (prefix ++ show idx)
 
 mkPush :: CodeGen ()
 mkPush = addInst $ push local 0
@@ -49,19 +52,43 @@ mkSomething = do
     addInst $ push pointer 0
 
 mkLabel :: CodeGen ()
-mkLabel = do
-    l <- genLabel "IF_TRUE"
-    addInst $ label l
+mkLabel = genLabel "IF_TRUE" >>= addInst
 
 doAll :: CodeGen ()
 doAll = mkPush >> mkSomething >> mkPop >> mkLabel
 
---codegen :: Class -> Program
-codegen :: Either ErrorMsg Program
-codegen = case msg of
+emitIntegerConstant :: IntegerConstant -> CodeGen ()
+emitIntegerConstant i = addInst $ push constant (getIntegerConstant i)
+
+emitStringConstant :: StringConstant -> CodeGen ()
+emitStringConstant sc = addInsts $
+        push constant (toInteger len) :
+        call "String.new" 1 :
+        interleave pushs appendChars
+    where s = getStringConstant sc
+          len = length s
+          pushs = map (push constant . toInteger . ord) s
+          appendChars = replicate len $ call "String.appendChar" 2
+          interleave xs ys = concat (transpose [xs, ys])
+
+codegen' :: a -> (a -> CodeGen b) -> CompileState -> Either ErrorMsg Program
+codegen' ast f state = case msg of
             Left m  -> Left m
             Right _ -> Right $ toList insts
     where
-        result :: (Either String (), DList Instruction)
-        result = runWriter $ (evalStateT $ runExceptT doAll) initCompileState
+        result = runWriter $ (evalStateT $ runExceptT (f ast)) state
         (msg, insts) = result
+
+codegen :: Class -> Either ErrorMsg Program
+codegen c = codegen' c emitClass initCompileState
+
+emitClass :: Class -> CodeGen ()
+emitClass _ = undefined
+
+-- test "123" integerConstant emitIntegerConstant initCompileState
+-- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState
+
+test s p f state = case parseAttempt of
+                Left m    -> Left $ show m
+                Right ast -> codegen' ast f state
+    where parseAttempt = parseJackSnippet s p
