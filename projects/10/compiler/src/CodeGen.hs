@@ -11,6 +11,8 @@ import Instructions
 type ErrorMsg = String
 type Program = [Instruction]
 
+newtype CompileState = CompileState { labelIndex :: Integer } deriving (Show)
+
 type CodeGen a = ExceptT String (StateT CompileState (Writer (DList Instruction))) a
 
 initCompileState :: CompileState
@@ -19,24 +21,40 @@ initCompileState = CompileState
 
     }
 
+addInst :: Instruction -> CodeGen ()
+addInst i = tell $ singleton i
+
+addInsts :: [Instruction] -> CodeGen ()
+addInsts xs = tell $ fromList xs
+
+genLabel :: String -> CodeGen String
+genLabel prefix = do
+    s <- get
+    let idx = labelIndex s
+    put s { labelIndex = idx + 1}
+    return $ prefix ++ show idx
+
 mkPush :: CodeGen ()
-mkPush = tell $ singleton (push local 0)
+mkPush = addInst $ push local 0
 
 mkPop :: CodeGen ()
-mkPop = tell $ singleton (pop arg 1)
+mkPop = addInst $ pop arg 1
 
 mkFail:: CodeGen ()
 mkFail = throwError "Couldn't compile!"
 
 mkSomething :: CodeGen ()
 mkSomething = do
-    put (CompileState 6)
-    s <- get
-    tell $ singleton (push pointer $ labelIndex s)
+    genLabel "WHILE"
+    addInst $ push pointer 0
+
+mkLabel :: CodeGen ()
+mkLabel = do
+    l <- genLabel "IF_TRUE"
+    addInst $ label l
 
 doAll :: CodeGen ()
---doAll = mkPush >> mkFail >> mkPop
-doAll = mkPush >> mkSomething >> mkPop
+doAll = mkPush >> mkSomething >> mkPop >> mkLabel
 
 --codegen :: Class -> Program
 codegen :: Either ErrorMsg Program
