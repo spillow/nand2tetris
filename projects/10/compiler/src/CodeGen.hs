@@ -76,6 +76,11 @@ mkLabel = genLabel "IF_TRUE" >>= addInst
 doAll :: CodeGen ()
 doAll = mkPush >> mkSomething >> mkPop >> mkLabel
 
+getVar :: String -> CodeGen Instruction
+getVar name = do
+    entry <- lookupSymTab name
+    return $ push (getMemSeg entry) (getIndex entry)
+
 emitIntegerConstant :: IntegerConstant -> CodeGen ()
 emitIntegerConstant i = addInst $ push constant (getIntegerConstant i)
 
@@ -94,18 +99,21 @@ emitKeywordConstant :: KeywordConstant -> CodeGen ()
 emitKeywordConstant True = addInsts [push constant 0, not]
 emitKeywordConstant False = addInst $ push constant 0
 emitKeywordConstant Null = addInst $ push constant 0
--- TODO
-emitKeywordConstant This = undefined
+emitKeywordConstant This = getVar "this" >>= addInst
 
 emitVarName :: VarName -> CodeGen ()
-emitVarName (Identifier name) = do
-    entry <- lookupSymTab name
-    addInst $ push (getMemSeg entry) (getIndex entry)
+emitVarName (Identifier name) = getVar name >>= addInst
 
 emitTermOp :: UnaryOp -> Term -> CodeGen ()
 emitTermOp op term = emitTerm term >> emitOp op
     where emitOp Negate = addInst neg
           emitOp BitwiseNot = addInst not
+
+emitArrayRead :: VarName -> ArrayIdx -> CodeGen ()
+emitArrayRead (Identifier name) idx = do
+    emitExpression idx
+    var <- getVar name
+    addInsts [var, add, pop pointer 1, push that 0]
 
 emitTerm :: Term -> CodeGen ()
 emitTerm (IC i)  = emitIntegerConstant i
@@ -114,6 +122,7 @@ emitTerm (KC k)  = emitKeywordConstant k
 emitTerm (VN vn) = emitVarName vn
 emitTerm (TermOp op term) = emitTermOp op term
 emitTerm (ParenExp exp) = emitExpression exp
+emitTerm (VNArr name idx) = emitArrayRead name idx
 -- TODO
 emitTerm _ = undefined
 
@@ -184,6 +193,6 @@ testCompState input = initCompileState "fakeclass" $ M.fromList entries
     where f (s, i) = (s, Entry Int argument i)
           entries = map f input
 
-teststate = testCompState [("x",0),("y",1),("z", 2)]
+teststate = testCompState [("this",0),("x",1),("y",2),("z", 3)]
 
 test s p f state = mapM_ print $ fromRight [] $ test' s p f state
