@@ -102,11 +102,18 @@ emitVarName (Identifier name) = do
     entry <- lookupSymTab name
     addInst $ push (getMemSeg entry) (getIndex entry)
 
+emitTermOp :: UnaryOp -> Term -> CodeGen ()
+emitTermOp op term = emitTerm term >> emitOp op
+    where emitOp Negate = addInst neg
+          emitOp BitwiseNot = addInst not
+
 emitTerm :: Term -> CodeGen ()
 emitTerm (IC i)  = emitIntegerConstant i
 emitTerm (SC s)  = emitStringConstant s
 emitTerm (KC k)  = emitKeywordConstant k
 emitTerm (VN vn) = emitVarName vn
+emitTerm (TermOp op term) = emitTermOp op term
+emitTerm (ParenExp exp) = emitExpression exp
 -- TODO
 emitTerm _ = undefined
 
