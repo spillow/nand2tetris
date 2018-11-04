@@ -5,7 +5,7 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.DList (fromList, toList, DList(..), singleton)
 import Data.Char
-import Data.List
+import Data.List (transpose)
 import Data.Either
 
 import Grammar
@@ -80,6 +80,27 @@ emitKeywordConstant False = addInst $ push constant 0
 emitKeywordConstant Null = addInst $ push constant 0
 -- TODO
 emitKeywordConstant This = undefined
+
+emitTerm :: Term -> CodeGen ()
+emitTerm (IC i) = emitIntegerConstant i
+-- TODO
+emitTerm _ = undefined
+
+emitExpression :: Expression -> CodeGen ()
+emitExpression (Expression term termops) =
+    emitTerm term >> mapM_ f termops
+    where f (op, term) = emitTerm term >> emitOp op
+
+emitOp :: Op -> CodeGen ()
+emitOp Plus        = addInst add
+emitOp Minus       = addInst sub
+emitOp Mult        = addInst $ call "Math.multiply" 2
+emitOp Divide      = addInst $ call "Math.divide" 2
+emitOp BitwiseAnd  = addInst and
+emitOp BitwiseOr   = addInst or
+emitOp LessThan    = addInst lt
+emitOp GreaterThan = addInst gt
+emitOp Equals      = addInst eq
 
 codegen' :: a -> (a -> CodeGen b) -> CompileState -> Either ErrorMsg Program
 codegen' ast f state = case msg of
