@@ -6,6 +6,7 @@ import Control.Monad.Writer
 import Data.DList (fromList, toList, DList(..), singleton)
 import Data.Char
 import Data.List
+import Data.Either
 
 import Grammar
 import Instructions
@@ -88,7 +89,9 @@ emitClass _ = undefined
 -- test "123" integerConstant emitIntegerConstant initCompileState
 -- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState
 
-test s p f state = case parseAttempt of
+test' s p f state = case parseAttempt of
                 Left m    -> Left $ show m
                 Right ast -> codegen' ast f state
     where parseAttempt = parseJackSnippet s p
+
+test s p f state = mapM_ print $ fromRight [] $ test' s p f state
