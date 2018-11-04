@@ -1,8 +1,8 @@
 module Instructions(
     push, pop, add, sub, neg, eq, gt, lt, and, or,
     not, label, goto, ifGoto, function, call, return',
-    local, constant, temp, pointer, this, that, arg, static,
-    Instruction) where
+    local, constant, temp, pointer, this, that, argument, static,
+    Instruction, MemSeg) where
 
 import Prelude hiding (and, or, not)
 
@@ -12,7 +12,7 @@ type FuncName = String
 type NumLocals = Integer
 type NumArgs = Integer
 
-data MemSeg = Local | Constant | Temp | Pointer | This | That | Arg | Static
+data MemSeg = Local | Constant | Temp | Pointer | This | That | Arg | Static deriving (Eq)
 data Instruction =
     Push MemSeg Idx
   | Pop MemSeg Idx
@@ -86,5 +86,5 @@ temp = Temp
 pointer = Pointer
 this = This
 that = That
-arg = Arg
+argument = Arg
 static = Static

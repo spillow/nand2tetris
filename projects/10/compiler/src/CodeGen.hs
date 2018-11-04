@@ -7,24 +7,39 @@ import Data.DList (fromList, toList, DList(..), singleton)
 import Data.Char
 import Data.List (transpose)
 import Data.Either
+import qualified Data.Map.Strict as M
 
 import Grammar
 import Instructions
-import Parser
+import Parser hiding (className)
 
 import Prelude hiding (True, False, and, or, not)
 
 type ErrorMsg = String
 type Program = [Instruction]
+type SymTab = M.Map String TableEntry
 
-newtype CompileState = CompileState { labelIndex :: Integer } deriving (Show)
+data TableEntry = Entry
+    { getType   :: Type
+    , getMemSeg :: MemSeg
+    , getIndex  :: Integer
+    } deriving (Show)
+
+data CompileState = CompileState
+    { labelIndex  :: Integer
+    , classSymTab :: SymTab
+    , subSymTab   :: SymTab
+    , className   :: String
+    } deriving (Show)
 
 type CodeGen a = ExceptT String (StateT CompileState (Writer (DList Instruction))) a
 
-initCompileState :: CompileState
-initCompileState = CompileState
-    { labelIndex = 0
-
+initCompileState :: String -> SymTab -> CompileState
+initCompileState name symtab = CompileState
+    { labelIndex  = 0
+    , classSymTab = symtab
+    , subSymTab   = M.empty
+    , className   = name
     }
 
 addInst :: Instruction -> CodeGen ()
@@ -44,7 +59,7 @@ mkPush :: CodeGen ()
 mkPush = addInst $ push local 0
 
 mkPop :: CodeGen ()
-mkPop = addInst $ pop arg 1
+mkPop = addInst $ pop argument 1
 
 mkFail:: CodeGen ()
 mkFail = throwError "Couldn't compile!"
@@ -83,6 +98,8 @@ emitKeywordConstant This = undefined
 
 emitTerm :: Term -> CodeGen ()
 emitTerm (IC i) = emitIntegerConstant i
+emitTerm (SC s) = emitStringConstant s
+emitTerm (KC k) = emitKeywordConstant k
 -- TODO
 emitTerm _ = undefined
 
@@ -110,8 +127,22 @@ codegen' ast f state = case msg of
         result = runWriter $ (evalStateT $ runExceptT (f ast)) state
         (msg, insts) = result
 
+getClassMemSeg :: ClassVarType -> MemSeg
+getClassMemSeg Static = static
+getClassMemSeg Field  = this
+
 codegen :: Class -> Either ErrorMsg Program
-codegen c = codegen' c emitClass initCompileState
+codegen c@(Class name vars _) = codegen' c emitClass $
+    initCompileState (getIdentifier name) classSymTab
+    where classSymTab = M.fromList $ go coll 0 0
+          f (ClassVarDec varty ty names) = map h names
+            where h (Identifier i) = (i, Entry ty (getClassMemSeg varty) 0)
+          coll = concatMap f vars
+          go ((s, e):xs) staticNum thisNum =
+            if getMemSeg e == static
+            then (s, e {getIndex = staticNum}) : go xs (staticNum + 1) thisNum
+            else (s, e {getIndex = thisNum}) : go xs staticNum (thisNum + 1)
+          go [] _ _ = []
 
 emitClass :: Class -> CodeGen ()
 emitClass _ = undefined
@@ -123,5 +154,12 @@ test' s p f state = case parseAttempt of
                 Left m    -> Left $ show m
                 Right ast -> codegen' ast f state
     where parseAttempt = parseJackSnippet s p
+
+testCompState :: [(String, Integer)] -> CompileState
+testCompState input = initCompileState "fakeclass" $ M.fromList entries
+    where f (s, i) = (s, Entry Int argument i)
+          entries = map f input
+
+teststate = testCompState [("x",0),("y",1),("z", 2)]
 
 test s p f state = mapM_ print $ fromRight [] $ test' s p f state

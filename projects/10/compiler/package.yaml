@@ -29,6 +29,7 @@ dependencies:
 - filepath
 - mtl
 - dlist
+- containers
 
 library:
   source-dirs: src
