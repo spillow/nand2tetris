@@ -1,4 +1,10 @@
-module Instructions where
+module Instructions(
+    push, pop, add, sub, neg, eq, gt, lt, and, or,
+    not, label, goto, ifGoto, function, call, return',
+    local, constant, temp, pointer, this, that, arg, static,
+    Instruction) where
+
+import Prelude hiding (and, or, not)
 
 type Idx = Integer
 type LabelName = String

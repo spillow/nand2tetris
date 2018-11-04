@@ -12,6 +12,8 @@ import Grammar
 import Instructions
 import Parser
 
+import Prelude hiding (True, False, and, or, not)
+
 type ErrorMsg = String
 type Program = [Instruction]
 
@@ -71,6 +73,13 @@ emitStringConstant sc = addInsts $
           pushs = map (push constant . toInteger . ord) s
           appendChars = replicate len $ call "String.appendChar" 2
           interleave xs ys = concat (transpose [xs, ys])
+
+emitKeywordConstant :: KeywordConstant -> CodeGen ()
+emitKeywordConstant True = addInsts [push constant 0, not]
+emitKeywordConstant False = addInst $ push constant 0
+emitKeywordConstant Null = addInst $ push constant 0
+-- TODO
+emitKeywordConstant This = undefined
 
 codegen' :: a -> (a -> CodeGen b) -> CompileState -> Either ErrorMsg Program
 codegen' ast f state = case msg of
