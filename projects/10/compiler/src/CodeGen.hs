@@ -3,6 +3,7 @@ module CodeGen where
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
+import Control.Monad (msum)
 import Data.DList (fromList, toList, DList(..), singleton)
 import Data.Char
 import Data.List (transpose)
@@ -96,10 +97,16 @@ emitKeywordConstant Null = addInst $ push constant 0
 -- TODO
 emitKeywordConstant This = undefined
 
+emitVarName :: VarName -> CodeGen ()
+emitVarName (Identifier name) = do
+    entry <- lookupSymTab name
+    addInst $ push (getMemSeg entry) (getIndex entry)
+
 emitTerm :: Term -> CodeGen ()
-emitTerm (IC i) = emitIntegerConstant i
-emitTerm (SC s) = emitStringConstant s
-emitTerm (KC k) = emitKeywordConstant k
+emitTerm (IC i)  = emitIntegerConstant i
+emitTerm (SC s)  = emitStringConstant s
+emitTerm (KC k)  = emitKeywordConstant k
+emitTerm (VN vn) = emitVarName vn
 -- TODO
 emitTerm _ = undefined
 
@@ -131,6 +138,15 @@ getClassMemSeg :: ClassVarType -> MemSeg
 getClassMemSeg Static = static
 getClassMemSeg Field  = this
 
+lookupSymTab :: String -> CodeGen TableEntry
+lookupSymTab name = do
+    state <- get
+    let result = msum [M.lookup name $ subSymTab state,
+                       M.lookup name $ classSymTab state]
+    case result of
+        Nothing -> throwError $ "Couldn't find variable: " ++ name
+        Just x  -> return x
+
 codegen :: Class -> Either ErrorMsg Program
 codegen c@(Class name vars _) = codegen' c emitClass $
     initCompileState (getIdentifier name) classSymTab
@@ -149,6 +165,7 @@ emitClass _ = undefined
 
 -- test "123" integerConstant emitIntegerConstant initCompileState
 -- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState
+-- test "x + 1" expression emitExpression teststate
 
 test' s p f state = case parseAttempt of
                 Left m    -> Left $ show m
