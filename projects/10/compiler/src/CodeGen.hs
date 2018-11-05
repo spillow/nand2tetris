@@ -81,6 +81,11 @@ getVar name = do
     entry <- lookupSymTab name
     return $ push (getMemSeg entry) (getIndex entry)
 
+setVar :: String -> CodeGen ()
+setVar name = do
+    entry <- lookupSymTab name
+    addInst $ pop (getMemSeg entry) (getIndex entry)
+
 emitIntegerConstant :: IntegerConstant -> CodeGen ()
 emitIntegerConstant i = addInst $ push constant (getIntegerConstant i)
 
@@ -140,6 +145,35 @@ emitExpression (Expression term termops) =
     emitTerm term >> mapM_ f termops
     where f (op, term) = emitTerm term >> emitOp op
 
+emitStatement :: Statement -> CodeGen ()
+emitStatement (LetStatement (Identifier varName) Nothing expr) = do
+    emitExpression expr
+    setVar varName
+emitStatement (LetStatement (Identifier varName) (Just arrIdx) expr) = do
+    emitExpression expr
+    var <- getVar varName
+    emitExpression arrIdx
+    addInsts [var, add, pop pointer 1, pop that 0]
+emitStatement (IfStatement cond stmts Nothing) = do
+    emitExpression cond
+    l@(Label label) <- genLabel "ENDIF"
+    addInsts [not, ifGoto label]
+    mapM_ emitStatement stmts
+    addInst l
+emitStatement (IfStatement cond stmts (Just elseStmts)) = do
+    emitExpression cond
+    l@(Label lelse) <- genLabel "ELSE"
+    lend@(Label lendif) <- genLabel "ENDIF"
+    addInsts [not, ifGoto lelse]
+    mapM_ emitStatement stmts
+    addInst $ goto lendif
+    addInst l
+    mapM_ emitStatement elseStmts
+    addInst lend
+
+-- TODO
+emitStatement _ = undefined
+
 emitOp :: Op -> CodeGen ()
 emitOp Plus        = addInst add
 emitOp Minus       = addInst sub
@@ -191,6 +225,7 @@ emitClass _ = undefined
 -- test "123" integerConstant emitIntegerConstant initCompileState
 -- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState
 -- test "x + 1" expression emitExpression teststate
+-- test  "if (z < 10) { let x = -x[y+1] * this.func(1+ 3); }" statement emitStatement  teststate
 
 test' s p f state = case parseAttempt of
                 Left m    -> Left $ show m
