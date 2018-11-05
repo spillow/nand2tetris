@@ -102,9 +102,10 @@ subroutineCall = try freeCall <|> try subCall
             return $ ClassCall name subName exprList
 
 term :: Parser Term
-term = choice [m integerConstant IC, m stringConstant SC,
+term = choice [SubCall <$> try subroutineCall,
+               m integerConstant IC, m stringConstant SC,
                m keywordConstant KC, try arrayIdx,
-               SubCall <$> try subroutineCall, VN <$> try varName,
+               VN <$> try varName,
                try parExpr, try termOp]
     where m x y = y <$> try x
           arrayIdx = liftM2 VNArr varName bracketExpr

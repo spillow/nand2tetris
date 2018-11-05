@@ -115,6 +115,16 @@ emitArrayRead (Identifier name) idx = do
     var <- getVar name
     addInsts [var, add, pop pointer 1, push that 0]
 
+emitSubroutineCall :: SubroutineCall -> CodeGen ()
+emitSubroutineCall (FreeCall (Identifier name) exprs) = do
+    mapM_ emitExpression exprs
+    addInst $ call name (toInteger $ length exprs)
+emitSubroutineCall (ClassCall (Identifier varName) (Identifier subName) exprs) = do
+    var <- getVar varName
+    addInst var
+    mapM_ emitExpression exprs
+    addInst $ call subName (toInteger $ length exprs + 1)
+
 emitTerm :: Term -> CodeGen ()
 emitTerm (IC i)  = emitIntegerConstant i
 emitTerm (SC s)  = emitStringConstant s
@@ -123,8 +133,7 @@ emitTerm (VN vn) = emitVarName vn
 emitTerm (TermOp op term) = emitTermOp op term
 emitTerm (ParenExp exp) = emitExpression exp
 emitTerm (VNArr name idx) = emitArrayRead name idx
--- TODO
-emitTerm _ = undefined
+emitTerm (SubCall subCall) = emitSubroutineCall subCall
 
 emitExpression :: Expression -> CodeGen ()
 emitExpression (Expression term termops) =
