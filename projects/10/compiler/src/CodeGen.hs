@@ -67,6 +67,11 @@ unionSubSymTab otherTab = do
     let currTab = subSymTab state
     put $ state { subSymTab = M.union currTab otherTab }
 
+flushSubSymTab :: CodeGen ()
+flushSubSymTab = do
+    s <- get
+    put $ s {subSymTab = M.empty}
+
 maybeGetVar :: String -> CodeGen (Maybe (Instruction, Type))
 maybeGetVar name = do
     entry <- maybeLookupSymTab name
@@ -113,13 +118,18 @@ emitArrayRead (Identifier name) idx = do
     var <- getVar name
     addInsts [var, add, pop pointer 1, push that 0]
 
+getClassName :: CodeGen String
+getClassName = do
+    state <- get
+    return $ className state
+
 emitSubroutineCall :: SubroutineCall -> CodeGen ()
 emitSubroutineCall (FreeCall (Identifier fnname) exprs) = do
     thisPtr <- getVar "this"
-    state <- get
     addInst thisPtr
+    name <- getClassName
     mapM_ emitExpression exprs
-    addInst $ call (className state ++ "." ++ fnname) (toInteger $ length exprs + 1)
+    addInst $ call (name ++ "." ++ fnname) (toInteger $ length exprs + 1)
 emitSubroutineCall (ClassCall (Identifier varName) (Identifier subName) exprs) = do
     var <- maybeGetVar varName
     case var of
@@ -149,19 +159,71 @@ emitExpression (Expression term termops) =
     emitTerm term >> mapM_ f termops
     where f (op, term) = emitTerm term >> emitOp op
 
+subPreamble start extraLocals subName body params = do
+    flushSubSymTab
+    cname <- getClassName
+    addInst $ function (cname ++ "." ++ subName) (getNumLocalVars body + extraLocals)
+    addParamList start params
+
+emitSubroutineDec :: SubroutineDec -> CodeGen ()
+emitSubroutineDec (SubroutineDec Constructor (SubTy ty)
+                   (Identifier subName) params body) = do
+    subPreamble 0 1 subName body params
+    numFieldVars <- getNumFieldVars
+    addInst $ push constant numFieldVars
+    addInst $ call "Memory.alloc" 1
+    addInsts [pop local 0, push local 0, pop pointer 0]
+    addSubSymTabEntry "this" $ Entry ty local 0
+    emitSubroutineBody 1 body
+emitSubroutineDec (SubroutineDec Function _
+                   (Identifier subName) params body) = do
+    subPreamble 0 0 subName body params
+    emitSubroutineBody 0 body
+emitSubroutineDec (SubroutineDec Method _
+                   (Identifier subName) params body) = do
+    subPreamble 1 0 subName body params
+    cname <- getClassName
+    addSubSymTabEntry "this" $ Entry (TypeName $ Identifier cname) argument 0
+    emitSubroutineBody 0 body
+emitSubroutineDec _ = throwError "constructor must return a type!"
+
 mapS :: (s -> a -> (s, b)) -> s -> [a] -> [b]
 mapS f s (x:xs) = res : mapS f news xs
     where (news, res) = f s x
 mapS _ _ [] = []
 
-emitSubroutineBody :: SubroutineBody -> CodeGen ()
-emitSubroutineBody (SubroutineBody vars stmts) = do
+addSubSymTabEntry :: String -> TableEntry -> CodeGen ()
+addSubSymTabEntry k e = do
+    s <- get
+    let tab = subSymTab s
+    put $ s { subSymTab = M.insert k e tab }
+
+getNumFieldVars :: CodeGen Integer
+getNumFieldVars = do
+    s <- get
+    let symtab = classSymTab s
+    return $ toInteger $ length [seg | (Entry _ seg _) <- M.elems symtab, seg == this]
+
+getNumLocalVars :: SubroutineBody -> Integer
+getNumLocalVars (SubroutineBody vars _) = sum $ map f vars
+    where f (VarDec _ names) = toInteger $ length names
+
+emitSubroutineBody :: Integer -> SubroutineBody -> CodeGen ()
+emitSubroutineBody start (SubroutineBody vars stmts) = do
     unionSubSymTab localMap
     mapM_ emitStatement stmts
     where entries = [(name, Entry {getType = ty, getMemSeg = local, getIndex = 0}) |
                      (VarDec ty names) <- vars, (Identifier name) <- names]
           f i (s, val) = (i+1, (s, val {getIndex = i}))
-          localMap = M.fromList $ mapS f 0 entries
+          localMap = M.fromList $ mapS f start entries
+
+addParamList :: Integer -> ParameterList -> CodeGen ()
+addParamList start (ParameterList params) = do
+    state <- get
+    let paramSyms = M.fromList $ zipWith f params [start..toInteger (length params) - 1 - start]
+    put $ state {subSymTab = paramSyms}
+    where f (ty, Identifier name) i =
+            (name, Entry {getType = ty, getMemSeg = argument, getIndex = i})
 
 emitStatement :: Statement -> CodeGen ()
 emitStatement (LetStatement (Identifier varName) Nothing expr) = do
