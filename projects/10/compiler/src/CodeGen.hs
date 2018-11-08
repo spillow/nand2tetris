@@ -56,30 +56,16 @@ genLabel prefix = do
     put s { labelIndex = idx + 1}
     return $ label (prefix ++ show idx)
 
-mkPush :: CodeGen ()
-mkPush = addInst $ push local 0
-
-mkPop :: CodeGen ()
-mkPop = addInst $ pop argument 1
-
-mkFail:: CodeGen ()
-mkFail = throwError "Couldn't compile!"
-
-mkSomething :: CodeGen ()
-mkSomething = do
-    genLabel "WHILE"
-    addInst $ push pointer 0
-
-mkLabel :: CodeGen ()
-mkLabel = genLabel "IF_TRUE" >>= addInst
-
-doAll :: CodeGen ()
-doAll = mkPush >> mkSomething >> mkPop >> mkLabel
-
 getVar :: String -> CodeGen Instruction
 getVar name = do
     entry <- lookupSymTab name
     return $ push (getMemSeg entry) (getIndex entry)
+
+unionSubSymTab :: SymTab -> CodeGen ()
+unionSubSymTab otherTab = do
+    state <- get
+    let currTab = subSymTab state
+    put $ state { subSymTab = M.union currTab otherTab }
 
 maybeGetVar :: String -> CodeGen (Maybe (Instruction, Type))
 maybeGetVar name = do
@@ -162,6 +148,20 @@ emitExpression :: Expression -> CodeGen ()
 emitExpression (Expression term termops) =
     emitTerm term >> mapM_ f termops
     where f (op, term) = emitTerm term >> emitOp op
+
+mapS :: (s -> a -> (s, b)) -> s -> [a] -> [b]
+mapS f s (x:xs) = res : mapS f news xs
+    where (news, res) = f s x
+mapS _ _ [] = []
+
+emitSubroutineBody :: SubroutineBody -> CodeGen ()
+emitSubroutineBody (SubroutineBody vars stmts) = do
+    unionSubSymTab localMap
+    mapM_ emitStatement stmts
+    where entries = [(name, Entry {getType = ty, getMemSeg = local, getIndex = 0}) |
+                     (VarDec ty names) <- vars, (Identifier name) <- names]
+          f i (s, val) = (i+1, (s, val {getIndex = i}))
+          localMap = M.fromList $ mapS f 0 entries
 
 emitStatement :: Statement -> CodeGen ()
 emitStatement (LetStatement (Identifier varName) Nothing expr) = do
@@ -263,6 +263,7 @@ emitClass _ = undefined
 -- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState
 -- test "x + 1" expression emitExpression teststate
 -- test  "if (z < 10) { let x = -x[y+1] * func(1+3); }" statement emitStatement  teststate
+-- test  "{var int t,g,b; let g = 0;}" subroutineBodyemitSubroutineBody teststate
 
 test' s p f state = case parseAttempt of
                 Left m    -> Left $ show m
