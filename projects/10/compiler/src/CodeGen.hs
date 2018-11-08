@@ -319,7 +319,7 @@ codegen c@(Class name vars _) = codegen' c emitClass $
           go [] _ _ = []
 
 emitClass :: Class -> CodeGen ()
-emitClass _ = undefined
+emitClass (Class _ _ subDecs) = mapM_ emitSubroutineDec subDecs
 
 -- test "123" integerConstant emitIntegerConstant initCompileState
 -- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState

@@ -1,11 +1,15 @@
 module InputHandler(emit) where
 
-import Text.Show.Pretty
+--import Text.Show.Pretty
 import Parser
+import qualified Grammar as G
+import CodeGen
 
-handle :: (Show a, Show b) => Either a b -> IO Bool
+handle :: Show a => Either a G.Class -> IO Bool
 handle (Left msg) = print msg >> return False
-handle (Right tree) = pPrint tree >> return True
+handle (Right tree) = case codegen tree of
+    Left msg      -> print msg >> return False
+    Right program -> mapM_ print program >> return True
 
 emit :: [String] -> IO [Bool]
 emit paths = do
