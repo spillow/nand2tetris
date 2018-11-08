@@ -188,9 +188,24 @@ emitStatement (IfStatement cond stmts (Just elseStmts)) = do
     addInst l
     mapM_ emitStatement elseStmts
     addInst lend
-
--- TODO
-emitStatement _ = undefined
+emitStatement (WhileStatement cond stmts) = do
+    toplabel@(Label ltoplabel) <- genLabel "TOP_LABEL"
+    bottomlabel@(Label lbottomlabel) <- genLabel "BOTTOM_LABEL"
+    addInst toplabel
+    emitExpression cond
+    addInsts [not, ifGoto lbottomlabel]
+    mapM_ emitStatement stmts
+    addInst $ goto ltoplabel
+    addInst bottomlabel
+emitStatement (DoStatement subCall) = do
+    emitSubroutineCall subCall
+    addInst $ pop temp 0
+emitStatement (ReturnStatement (Just val)) = do
+    emitExpression val
+    addInst return'
+emitStatement (ReturnStatement Nothing) = do
+    addInst $ push constant 0
+    addInst return'
 
 emitOp :: Op -> CodeGen ()
 emitOp Plus        = addInst add

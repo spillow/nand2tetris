@@ -22,7 +22,8 @@ data SubroutineType = Void | SubTy Type deriving (Show, Eq)
 data Class = Class ClassName [ClassVarDec] [SubroutineDec] deriving (Show, Eq)
 data ClassVarDec = ClassVarDec ClassVarType Type [VarName] deriving (Show, Eq)
 data Type = Int | Char | Boolean | TypeName ClassName deriving (Show, Eq)
-data SubroutineDec = SubroutineDec SubroutineVariety SubroutineType SubroutineName ParameterList SubroutineBody deriving (Show, Eq)
+data SubroutineDec = SubroutineDec SubroutineVariety SubroutineType
+                     SubroutineName ParameterList SubroutineBody deriving (Show, Eq)
 newtype ParameterList = ParameterList { getParamList :: [(Type, VarName)] } deriving (Show, Eq)
 data SubroutineBody = SubroutineBody [VarDec] Statements deriving (Show, Eq)
 data VarDec = VarDec Type [VarName] deriving (Show, Eq)
@@ -36,10 +37,12 @@ data Statement = LetStatement VarName (Maybe ArrayIdx) Expression
 
 -- Expressions
 data Expression = Expression Term [(Op, Term)] deriving (Show, Eq)
-data Term = IC IntegerConstant | SC StringConstant | KC KeywordConstant | VN VarName | VNArr VarName ArrayIdx |
-            SubCall SubroutineCall | ParenExp Expression | TermOp UnaryOp Term deriving (Show, Eq)
+data Term = IC IntegerConstant | SC StringConstant | KC KeywordConstant | VN VarName |
+            VNArr VarName ArrayIdx | SubCall SubroutineCall | ParenExp Expression |
+            TermOp UnaryOp Term deriving (Show, Eq)
 data SubroutineCall = FreeCall SubroutineName [Expression]
                     | ClassCall VarName SubroutineName [Expression] deriving (Show, Eq)
-data Op = Plus | Minus | Mult | Divide | BitwiseAnd | BitwiseOr | LessThan | GreaterThan | Equals deriving (Show, Eq)
+data Op = Plus | Minus | Mult | Divide | BitwiseAnd | BitwiseOr | LessThan | GreaterThan | Equals
+          deriving (Show, Eq)
 data UnaryOp = Negate | BitwiseNot deriving (Show, Eq)
 data KeywordConstant = True | False | Null | This deriving (Show, Eq)
