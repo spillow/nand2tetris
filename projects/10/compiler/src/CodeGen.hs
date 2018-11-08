@@ -81,6 +81,13 @@ getVar name = do
     entry <- lookupSymTab name
     return $ push (getMemSeg entry) (getIndex entry)
 
+maybeGetVar :: String -> CodeGen (Maybe (Instruction, Type))
+maybeGetVar name = do
+    entry <- maybeLookupSymTab name
+    case entry of
+        Nothing -> return Nothing
+        Just x  -> return $ Just (push (getMemSeg x) (getIndex x), getType x)
+
 setVar :: String -> CodeGen ()
 setVar name = do
     entry <- lookupSymTab name
@@ -121,14 +128,25 @@ emitArrayRead (Identifier name) idx = do
     addInsts [var, add, pop pointer 1, push that 0]
 
 emitSubroutineCall :: SubroutineCall -> CodeGen ()
-emitSubroutineCall (FreeCall (Identifier name) exprs) = do
+emitSubroutineCall (FreeCall (Identifier fnname) exprs) = do
+    thisPtr <- getVar "this"
+    state <- get
+    addInst thisPtr
     mapM_ emitExpression exprs
-    addInst $ call name (toInteger $ length exprs)
+    addInst $ call (className state ++ "." ++ fnname) (toInteger $ length exprs + 1)
 emitSubroutineCall (ClassCall (Identifier varName) (Identifier subName) exprs) = do
-    var <- getVar varName
-    addInst var
-    mapM_ emitExpression exprs
-    addInst $ call subName (toInteger $ length exprs + 1)
+    var <- maybeGetVar varName
+    case var of
+        Just (v, TypeName (Identifier ty)) -> methodCall v ty
+        Just _                             -> throwError "var type is not a class!"
+        Nothing                            -> staticCall
+    where methodCall v ty = do
+            addInst v
+            mapM_ emitExpression exprs
+            addInst $ call (ty ++ "." ++ subName) (toInteger $ length exprs + 1)
+          staticCall = do
+            mapM_ emitExpression exprs
+            addInst $ call (varName ++ "." ++ subName) (toInteger $ length exprs)
 
 emitTerm :: Term -> CodeGen ()
 emitTerm (IC i)  = emitIntegerConstant i
@@ -199,12 +217,16 @@ getClassMemSeg Field  = this
 
 lookupSymTab :: String -> CodeGen TableEntry
 lookupSymTab name = do
-    state <- get
-    let result = msum [M.lookup name $ subSymTab state,
-                       M.lookup name $ classSymTab state]
+    result <- maybeLookupSymTab name
     case result of
         Nothing -> throwError $ "Couldn't find variable: " ++ name
         Just x  -> return x
+
+maybeLookupSymTab :: String -> CodeGen (Maybe TableEntry)
+maybeLookupSymTab name = do
+    state <- get
+    return $ msum [M.lookup name $ subSymTab state,
+                   M.lookup name $ classSymTab state]
 
 codegen :: Class -> Either ErrorMsg Program
 codegen c@(Class name vars _) = codegen' c emitClass $
@@ -225,18 +247,19 @@ emitClass _ = undefined
 -- test "123" integerConstant emitIntegerConstant initCompileState
 -- test "\"HOW MANY NUMBERS? \"" stringConstant emitStringConstant initCompileState
 -- test "x + 1" expression emitExpression teststate
--- test  "if (z < 10) { let x = -x[y+1] * this.func(1+ 3); }" statement emitStatement  teststate
+-- test  "if (z < 10) { let x = -x[y+1] * func(1+3); }" statement emitStatement  teststate
 
 test' s p f state = case parseAttempt of
                 Left m    -> Left $ show m
                 Right ast -> codegen' ast f state
     where parseAttempt = parseJackSnippet s p
 
-testCompState :: [(String, Integer)] -> CompileState
+testCompState :: [(String, Integer, Type)] -> CompileState
 testCompState input = initCompileState "fakeclass" $ M.fromList entries
-    where f (s, i) = (s, Entry Int argument i)
+    where f (s, i, ty) = (s, Entry ty argument i)
           entries = map f input
 
-teststate = testCompState [("this",0),("x",1),("y",2),("z", 3)]
+teststate = testCompState [("this",0,classTy),("x",1,Int),("y",2,Int),("z", 3,Int),("w",4,classTy)]
+    where classTy = TypeName $ Identifier "fakeclass"
 
 test s p f state = mapM_ print $ fromRight [] $ test' s p f state
