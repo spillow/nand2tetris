@@ -4,15 +4,24 @@ module InputHandler(emit) where
 import Parser
 import qualified Grammar as G
 import CodeGen
+import System.IO
+import System.FilePath
 
-handle :: Show a => Either a G.Class -> IO Bool
-handle (Left msg) = print msg >> return False
-handle (Right tree) = case codegen tree of
-    Left msg      -> print msg >> return False
-    Right program -> mapM_ print program >> return True
+writeProgram :: FilePath -> Program -> IO ()
+writeProgram path prog = do
+    h <- openFile path WriteMode
+    mapM_ (hPrint h) prog
+    hClose h
 
-emit :: [String] -> IO [Bool]
+handle :: Show a => (FilePath, Either a G.Class) -> IO ()
+handle (_, Left msg) = print msg
+handle (path, Right tree) = case codegen tree of
+    Left msg      -> print msg
+    Right program -> writeProgram vmPath program
+    where vmPath = replaceExtension path "vm"
+
+emit :: [String] -> IO ()
 emit paths = do
     texts <- mapM readFile paths
-    let trees = [parseJack file text | (file, text) <- zip paths texts]
-    mapM handle trees
+    let trees = [(file, parseJack file text) | (file, text) <- zip paths texts]
+    mapM_ handle trees

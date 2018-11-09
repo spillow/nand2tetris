@@ -1,12 +1,14 @@
 module Main where
 
 import System.Environment
+import System.Directory
+import System.FilePath
 import InputHandler
-import Control.Monad (void)
 
 main :: IO ()
 main = do
     args <- getArgs
-    if null args
-        then putStrLn "compiler: <path to .jack file>+"
-        else void $ emit args
+    case args of
+        [dir] -> listDirectory dir >>= emit . map (dir </>) . process
+        _     -> putStrLn "compiler: <directory of .jack files>"
+    where process = filter $ (== ".jack") . takeExtension
