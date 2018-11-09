@@ -184,6 +184,7 @@ emitSubroutineDec (SubroutineDec Method _
     subPreamble 1 0 subName body params
     cname <- getClassName
     addSubSymTabEntry "this" $ Entry (TypeName $ Identifier cname) argument 0
+    addInsts [push argument 0, pop pointer 0]
     emitSubroutineBody 0 body
 emitSubroutineDec _ = throwError "constructor must return a type!"
 
@@ -220,7 +221,7 @@ emitSubroutineBody start (SubroutineBody vars stmts) = do
 addParamList :: Integer -> ParameterList -> CodeGen ()
 addParamList start (ParameterList params) = do
     state <- get
-    let paramSyms = M.fromList $ zipWith f params [start..toInteger (length params) - 1 - start]
+    let paramSyms = M.fromList $ zipWith f params [start..]
     put $ state {subSymTab = paramSyms}
     where f (ty, Identifier name) i =
             (name, Entry {getType = ty, getMemSeg = argument, getIndex = i})
