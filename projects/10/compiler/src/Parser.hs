@@ -1,4 +1,8 @@
-module Parser where
+module Parser
+    ( parseJack
+    , parseJackSnippet
+    )
+where
 
 import Control.Monad (void, liftM2)
 import Text.ParserCombinators.Parsec

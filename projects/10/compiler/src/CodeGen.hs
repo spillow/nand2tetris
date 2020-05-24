@@ -1,4 +1,8 @@
-module CodeGen where
+module CodeGen
+    ( codegen
+    , Program
+    )
+where
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -11,8 +15,6 @@ import qualified Data.Map.Strict as M
 
 import Grammar
 import Instructions
-import Parser hiding (className)
-import Text.ParserCombinators.Parsec (Parser)
 
 import Prelude hiding (True, False, and, or, not)
 
@@ -118,14 +120,11 @@ emitArrayRead (Identifier name) idx = do
     var <- getVar name
     addInsts [var, add, pop pointer 1, push that 0]
 
-getClassName :: CodeGen String
-getClassName = gets className
-
 emitSubroutineCall :: SubroutineCall -> CodeGen ()
 emitSubroutineCall (FreeCall (Identifier fnname) exprs) = do
     thisPtr <- getVar "this"
     addInst thisPtr
-    name <- getClassName
+    name <- gets className
     mapM_ emitExpression exprs
     addInst $ call (name ++ "." ++ fnname) (toInteger $ length exprs + 1)
 emitSubroutineCall (ClassCall (Identifier varName') (Identifier subName) exprs) = do
@@ -166,7 +165,7 @@ subPreamble
     -> CodeGen ()
 subPreamble start extraLocals subName body params = do
     flushSubSymTab
-    cname <- getClassName
+    cname <- gets className
     addInst $ function (cname ++ "." ++ subName) (getNumLocalVars body + extraLocals)
     addParamList start params
 
@@ -187,7 +186,7 @@ emitSubroutineDec (SubroutineDec Function _
 emitSubroutineDec (SubroutineDec Method _
                    (Identifier subName) params body) = do
     subPreamble 1 0 subName body params
-    cname <- getClassName
+    cname <- gets className
     addSubSymTabEntry "this" $ Entry (TypeName $ Identifier cname) argument 0
     addInsts [push argument 0, pop pointer 0]
     emitSubroutineBody 0 body
@@ -334,7 +333,7 @@ emitClass (Class _ _ subDecs) = mapM_ emitSubroutineDec subDecs
 -- test  "{var int t,g,b; let g = 0;}" subroutineBodyemitSubroutineBody teststate
 
 
-
+{-
 test'
     :: String
     -> Parser a
@@ -357,3 +356,4 @@ teststate = testCompState [("this",0,classTy),("x",1,Int),("y",2,Int),("z", 3,In
 
 test :: String -> Parser a -> (a -> CodeGen b) -> CompileState -> IO ()
 test s p f state' = mapM_ print $ fromRight [] $ test' s p f state'
+-}

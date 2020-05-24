@@ -43,6 +43,7 @@ library:
   - -Wredundant-constraints
   - -Wpartial-fields
   - -Widentities
+  - -Wmissing-export-lists
   - -Werror
 
 executables:
