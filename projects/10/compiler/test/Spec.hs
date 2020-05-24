@@ -3,11 +3,9 @@ import Test.QuickCheck
 import System.FilePath
 import InputHandler
 import RandGrammar
-import qualified Grammar as G
 
 parseTest path =
-    it ("Parsing " ++ takeFileName path ++ "...") $
-            emit [path] >>= (\res -> res `shouldBe` [True])
+    it ("Parsing " ++ takeFileName path ++ "...") $ emit [path]
 
 main :: IO ()
 main = hspec $

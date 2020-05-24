@@ -1,6 +1,5 @@
 module InputHandler(emit) where
 
---import Text.Show.Pretty
 import Parser
 import qualified Grammar as G
 import CodeGen

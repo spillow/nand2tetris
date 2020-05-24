@@ -3,7 +3,6 @@ module CodeGen where
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
-import Control.Monad (msum)
 import Data.DList (fromList, toList, DList(..), singleton)
 import Data.Char
 import Data.List (transpose)
@@ -237,14 +236,14 @@ emitStatement (LetStatement (Identifier varName) (Just arrIdx) expr) = do
     addInsts [var, add, pop pointer 1, pop that 0]
 emitStatement (IfStatement cond stmts Nothing) = do
     emitExpression cond
-    l@(Label label) <- genLabel "ENDIF"
+    l@(~(Label label)) <- genLabel "ENDIF"
     addInsts [not, ifGoto label]
     mapM_ emitStatement stmts
     addInst l
 emitStatement (IfStatement cond stmts (Just elseStmts)) = do
     emitExpression cond
-    l@(Label lelse) <- genLabel "ELSE"
-    lend@(Label lendif) <- genLabel "ENDIF"
+    l@(~(Label lelse)) <- genLabel "ELSE"
+    lend@(~(Label lendif)) <- genLabel "ENDIF"
     addInsts [not, ifGoto lelse]
     mapM_ emitStatement stmts
     addInst $ goto lendif
@@ -252,8 +251,8 @@ emitStatement (IfStatement cond stmts (Just elseStmts)) = do
     mapM_ emitStatement elseStmts
     addInst lend
 emitStatement (WhileStatement cond stmts) = do
-    toplabel@(Label ltoplabel) <- genLabel "TOP_LABEL"
-    bottomlabel@(Label lbottomlabel) <- genLabel "BOTTOM_LABEL"
+    toplabel@(~(Label ltoplabel)) <- genLabel "TOP_LABEL"
+    bottomlabel@(~(Label lbottomlabel)) <- genLabel "BOTTOM_LABEL"
     addInst toplabel
     emitExpression cond
     addInsts [not, ifGoto lbottomlabel]

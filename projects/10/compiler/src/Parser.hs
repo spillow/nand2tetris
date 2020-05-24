@@ -2,7 +2,6 @@
 module Parser where
 
 import Control.Monad (void, liftM2)
-import Control.Applicative ((<*), (*>))
 import Text.ParserCombinators.Parsec
 import Grammar
 
