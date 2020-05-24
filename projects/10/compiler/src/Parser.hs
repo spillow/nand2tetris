@@ -1,4 +1,3 @@
---module Parser(parseJack, parseJackSnippet) where
 module Parser where
 
 import Control.Monad (void, liftM2)
@@ -97,8 +96,7 @@ subroutineCall = try freeCall <|> try subCall
             name <- varName
             symbol '.'
             subName <- subroutineName
-            exprList <- parenExprList
-            return $ ClassCall name subName exprList
+            ClassCall name subName <$> parenExprList
 
 term :: Parser Term
 term = choice [SubCall <$> try subroutineCall,
@@ -143,8 +141,7 @@ whileStatement :: Parser Statement
 whileStatement = do
     try $ keyword "while"
     cond <- parenExpr
-    stmts <- bracedStmts
-    return $ WhileStatement cond stmts
+    WhileStatement cond <$> bracedStmts
 
 doStatement :: Parser Statement
 doStatement = do
@@ -208,8 +205,7 @@ subroutineDec = do
     subType    <- subTy
     subName    <- subroutineName
     params     <- parenParamList
-    subBody    <- subroutineBody
-    return $ SubroutineDec subVariety subType subName params subBody
+    SubroutineDec subVariety subType subName params <$> subroutineBody
     where decTy = choice [const Constructor <$> try (keyword "constructor")
                         , const Function <$> try (keyword "function")
                         , const Method <$> try (keyword "method")]
