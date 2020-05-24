@@ -62,29 +62,54 @@ instance Show Instruction where
     show (Call f n)     = "call " ++ f ++ " " ++ show n
     show Return         = "return"
 
+push :: MemSeg -> Idx -> Instruction
 push = Push
+pop :: MemSeg -> Idx -> Instruction
 pop = Pop
+add :: Instruction
 add = Add
+sub :: Instruction
 sub = Sub
+neg :: Instruction
 neg = Neg
+eq :: Instruction
 eq = Eq
+gt :: Instruction
 gt = Gt
+lt :: Instruction
 lt = Lt
+and :: Instruction
 and = And
+or :: Instruction
 or = Or
+not :: Instruction
 not = Not
+label :: LabelName -> Instruction
 label = Label
+goto :: LabelName -> Instruction
 goto = Goto
+ifGoto :: LabelName -> Instruction
 ifGoto = IfGoto
+function :: FuncName -> NumLocals -> Instruction
 function = Function
+call :: FuncName -> NumArgs -> Instruction
 call = Call
+return' :: Instruction
 return' = Return
 
+local :: MemSeg
 local = Local
+constant :: MemSeg
 constant = Constant
+temp :: MemSeg
 temp = Temp
+pointer :: MemSeg
 pointer = Pointer
+this :: MemSeg
 this = This
+that :: MemSeg
 that = That
+argument :: MemSeg
 argument = Arg
+static :: MemSeg
 static = Static

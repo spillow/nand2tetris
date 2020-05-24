@@ -36,6 +36,13 @@ library:
   source-dirs: src
   ghc-options:
   - -W
+  - -Wall
+  - -Wcompat
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wredundant-constraints
+  - -Wpartial-fields
+  - -Widentities
   - -Werror
 
 executables:

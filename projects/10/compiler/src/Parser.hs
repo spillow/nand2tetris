@@ -6,6 +6,7 @@ import Grammar
 
 import Prelude hiding (True, False)
 
+eol :: Parser String
 eol =   try (string "\n\r")
     <|> try (string "\r\n")
     <|> string "\n"
@@ -19,7 +20,7 @@ symbol c = Symbol <$> lexeme (char c)
 
 keyword :: String -> Parser Keyword
 keyword k = do
-    string k
+    _ <- string k
     notFollowedBy alphaNum
     notFollowedBy $ char '_'
     whitespace
@@ -45,8 +46,11 @@ identifier = Identifier <$> lexeme ((:) <$> firstChar <*> many nonFirstChar)
     where firstChar = letter <|> char '_'
           nonFirstChar = digit <|> firstChar
 
+varName :: Parser Identifier
 varName = identifier
+subroutineName :: Parser Identifier
 subroutineName = identifier
+className :: Parser Identifier
 className = identifier
 
 integerConstant :: Parser IntegerConstant
@@ -57,18 +61,18 @@ integerConstant = do
 
 stringConstant :: Parser StringConstant
 stringConstant = do
-    char '"'
+    _ <- char '"'
     s <- manyTill anyChar (char '"')
     whitespace
     return $ StringConstant s
 
 op :: Parser Op
-op = choice [plus, minus, star, div, bitand, bitor, lt, gt, eq]
+op = choice [plus, minus, star, div', bitand, bitor, lt, gt, eq]
     where conv x y = const x <$> symbol y
           plus   = conv Plus '+'
           minus  = conv Minus '-'
           star   = conv Mult '*'
-          div    = conv Divide '/'
+          div'    = conv Divide '/'
           bitand = conv BitwiseAnd '&'
           bitor  = conv BitwiseOr '|'
           lt     = conv LessThan '<'
@@ -76,10 +80,10 @@ op = choice [plus, minus, star, div, bitand, bitor, lt, gt, eq]
           eq     = conv Equals '='
 
 unaryOp :: Parser UnaryOp
-unaryOp = choice [neg, not]
+unaryOp = choice [neg, not']
     where conv x y = const x <$> symbol y
           neg = conv Negate '-'
-          not = conv BitwiseNot '~'
+          not' = conv BitwiseNot '~'
         
 keywordConstant :: Parser KeywordConstant
 keywordConstant = choice [p "true" True, p "false" False,
@@ -94,7 +98,7 @@ subroutineCall = try freeCall <|> try subCall
     where freeCall = liftM2 FreeCall subroutineName parenExprList
           subCall = do
             name <- varName
-            symbol '.'
+            _ <- symbol '.'
             subName <- subroutineName
             ClassCall name subName <$> parenExprList
 
@@ -123,15 +127,20 @@ statement = choice [letStatement, ifStatement,
 delimParser :: Char -> Parser a -> Char -> Parser a
 delimParser c1 p c2 = symbol c1 *> p <* symbol c2
 
+bracketExpr :: Parser Expression
 bracketExpr    = delimParser '[' expression ']'
+bracedStmts :: Parser Statements
 bracedStmts    = delimParser '{' statements '}'
+parenExpr :: Parser Expression
 parenExpr      = delimParser '(' expression ')'
+parenExprList :: Parser [Expression]
 parenExprList  = delimParser '(' expressionList ')'
+parenParamList :: Parser ParameterList
 parenParamList = delimParser '(' parameterList ')'
 
 ifStatement :: Parser Statement
 ifStatement = do
-    try $ keyword "if"
+    _ <- try $ keyword "if"
     cond <- parenExpr
     stmts <- bracedStmts
     elif <- optionMaybe $ keyword "else" *> bracedStmts
@@ -139,32 +148,32 @@ ifStatement = do
 
 whileStatement :: Parser Statement
 whileStatement = do
-    try $ keyword "while"
+    _ <- try $ keyword "while"
     cond <- parenExpr
     WhileStatement cond <$> bracedStmts
 
 doStatement :: Parser Statement
 doStatement = do
-    try $ keyword "do"
+    _ <- try $ keyword "do"
     call <- subroutineCall
-    symbol ';'
+    _ <- symbol ';'
     return $ DoStatement call
 
 returnStatement :: Parser Statement
 returnStatement = do
-    try $ keyword "return"
+    _ <- try $ keyword "return"
     expr <- optionMaybe expression
-    symbol ';'
+    _ <- symbol ';'
     return $ ReturnStatement expr
 
 letStatement :: Parser Statement
 letStatement = do
-    try $ keyword "let"
+    _ <- try $ keyword "let"
     name <- varName
     arrIdx <- optionMaybe bracketExpr
-    symbol '='
+    _ <- symbol '='
     expr <- expression
-    symbol ';'
+    _ <- symbol ';'
     return $ LetStatement name arrIdx expr
 
 typeParse :: Parser Type
@@ -178,12 +187,12 @@ parseTyDecls = do
     ty <- typeParse
     v1 <- varName
     vars <- many $ symbol ',' *> varName
-    symbol ';'
+    _ <- symbol ';'
     return (ty, v1:vars)
 
 varDec :: Parser VarDec
 varDec = do
-    try $ keyword "var"
+    _ <- try $ keyword "var"
     (ty, vars) <- parseTyDecls
     return $ VarDec ty vars
 
@@ -193,10 +202,10 @@ parameterList = ParameterList <$> p `sepBy` symbol ','
         
 subroutineBody :: Parser SubroutineBody
 subroutineBody = do
-    symbol '{'
+    _ <- symbol '{'
     vars  <- many varDec
     stmts <- statements
-    symbol '}'
+    _ <- symbol '}'
     return $ SubroutineBody vars stmts
 
 subroutineDec :: Parser SubroutineDec
@@ -223,12 +232,12 @@ classVarDec = do
 parseClass :: Parser Class
 parseClass = do
     whitespace
-    keyword "class"
+    _ <- keyword "class"
     name <- className
-    symbol '{'
+    _ <- symbol '{'
     varDecs <- many classVarDec
     subDecs <- many subroutineDec
-    symbol '}'
+    _ <- symbol '}'
     return $ Class name varDecs subDecs
 
 parseJackSnippet :: String -> Parser a -> Either ParseError a

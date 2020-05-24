@@ -12,6 +12,7 @@ import qualified Data.Map.Strict as M
 import Grammar
 import Instructions
 import Parser hiding (className)
+import Text.ParserCombinators.Parsec (Parser)
 
 import Prelude hiding (True, False, and, or, not)
 
@@ -48,12 +49,12 @@ addInst i = tell $ singleton i
 addInsts :: [Instruction] -> CodeGen ()
 addInsts xs = tell $ fromList xs
 
-genLabel :: String -> CodeGen Instruction
+genLabel :: String -> CodeGen String
 genLabel prefix = do
     s <- get
     let idx = labelIndex s
     put s { labelIndex = idx + 1}
-    return $ label (prefix ++ show idx)
+    return $ prefix ++ show idx
 
 getVar :: String -> CodeGen Instruction
 getVar name = do
@@ -62,9 +63,9 @@ getVar name = do
 
 unionSubSymTab :: SymTab -> CodeGen ()
 unionSubSymTab otherTab = do
-    state <- get
-    let currTab = subSymTab state
-    put $ state { subSymTab = M.union currTab otherTab }
+    state' <- get
+    let currTab = subSymTab state'
+    put $ state' { subSymTab = M.union currTab otherTab }
 
 flushSubSymTab :: CodeGen ()
 flushSubSymTab = do
@@ -107,9 +108,9 @@ emitVarName :: VarName -> CodeGen ()
 emitVarName (Identifier name) = getVar name >>= addInst
 
 emitTermOp :: UnaryOp -> Term -> CodeGen ()
-emitTermOp op term = emitTerm term >> emitOp op
-    where emitOp Negate = addInst neg
-          emitOp BitwiseNot = addInst not
+emitTermOp op' term' = emitTerm term' >> emitOp' op'
+    where emitOp' Negate = addInst neg
+          emitOp' BitwiseNot = addInst not
 
 emitArrayRead :: VarName -> ArrayIdx -> CodeGen ()
 emitArrayRead (Identifier name) idx = do
@@ -118,9 +119,7 @@ emitArrayRead (Identifier name) idx = do
     addInsts [var, add, pop pointer 1, push that 0]
 
 getClassName :: CodeGen String
-getClassName = do
-    state <- get
-    return $ className state
+getClassName = gets className
 
 emitSubroutineCall :: SubroutineCall -> CodeGen ()
 emitSubroutineCall (FreeCall (Identifier fnname) exprs) = do
@@ -129,8 +128,8 @@ emitSubroutineCall (FreeCall (Identifier fnname) exprs) = do
     name <- getClassName
     mapM_ emitExpression exprs
     addInst $ call (name ++ "." ++ fnname) (toInteger $ length exprs + 1)
-emitSubroutineCall (ClassCall (Identifier varName) (Identifier subName) exprs) = do
-    var <- maybeGetVar varName
+emitSubroutineCall (ClassCall (Identifier varName') (Identifier subName) exprs) = do
+    var <- maybeGetVar varName'
     case var of
         Just (v, TypeName (Identifier ty)) -> methodCall v ty
         Just _                             -> throwError "var type is not a class!"
@@ -141,23 +140,30 @@ emitSubroutineCall (ClassCall (Identifier varName) (Identifier subName) exprs) =
             addInst $ call (ty ++ "." ++ subName) (toInteger $ length exprs + 1)
           staticCall = do
             mapM_ emitExpression exprs
-            addInst $ call (varName ++ "." ++ subName) (toInteger $ length exprs)
+            addInst $ call (varName' ++ "." ++ subName) (toInteger $ length exprs)
 
 emitTerm :: Term -> CodeGen ()
 emitTerm (IC i)  = emitIntegerConstant i
 emitTerm (SC s)  = emitStringConstant s
 emitTerm (KC k)  = emitKeywordConstant k
 emitTerm (VN vn) = emitVarName vn
-emitTerm (TermOp op term) = emitTermOp op term
-emitTerm (ParenExp exp) = emitExpression exp
+emitTerm (TermOp op' term') = emitTermOp op' term'
+emitTerm (ParenExp exp') = emitExpression exp'
 emitTerm (VNArr name idx) = emitArrayRead name idx
 emitTerm (SubCall subCall) = emitSubroutineCall subCall
 
 emitExpression :: Expression -> CodeGen ()
-emitExpression (Expression term termops) =
-    emitTerm term >> mapM_ f termops
-    where f (op, term) = emitTerm term >> emitOp op
+emitExpression (Expression term' termops) =
+    emitTerm term' >> mapM_ f termops
+    where f (op', term'') = emitTerm term'' >> emitOp op'
 
+subPreamble
+    :: Integer
+    -> Integer
+    -> String
+    -> SubroutineBody
+    -> ParameterList
+    -> CodeGen ()
 subPreamble start extraLocals subName body params = do
     flushSubSymTab
     cname <- getClassName
@@ -219,46 +225,46 @@ emitSubroutineBody start (SubroutineBody vars stmts) = do
 
 addParamList :: Integer -> ParameterList -> CodeGen ()
 addParamList start (ParameterList params) = do
-    state <- get
+    state' <- get
     let paramSyms = M.fromList $ zipWith f params [start..]
-    put $ state {subSymTab = paramSyms}
+    put $ state' {subSymTab = paramSyms}
     where f (ty, Identifier name) i =
             (name, Entry {getType = ty, getMemSeg = argument, getIndex = i})
 
 emitStatement :: Statement -> CodeGen ()
-emitStatement (LetStatement (Identifier varName) Nothing expr) = do
+emitStatement (LetStatement (Identifier varName') Nothing expr) = do
     emitExpression expr
-    setVar varName
-emitStatement (LetStatement (Identifier varName) (Just arrIdx) expr) = do
+    setVar varName'
+emitStatement (LetStatement (Identifier varName') (Just arrIdx) expr) = do
     emitExpression expr
-    var <- getVar varName
+    var <- getVar varName'
     emitExpression arrIdx
     addInsts [var, add, pop pointer 1, pop that 0]
 emitStatement (IfStatement cond stmts Nothing) = do
     emitExpression cond
-    l@(~(Label label)) <- genLabel "ENDIF"
-    addInsts [not, ifGoto label]
+    name' <- genLabel "ENDIF"
+    addInsts [not, ifGoto name']
     mapM_ emitStatement stmts
-    addInst l
+    addInst $ label name'
 emitStatement (IfStatement cond stmts (Just elseStmts)) = do
     emitExpression cond
-    l@(~(Label lelse)) <- genLabel "ELSE"
-    lend@(~(Label lendif)) <- genLabel "ENDIF"
-    addInsts [not, ifGoto lelse]
+    elseName <- genLabel "ELSE"
+    endifName <- genLabel "ENDIF"
+    addInsts [not, ifGoto elseName]
     mapM_ emitStatement stmts
-    addInst $ goto lendif
-    addInst l
+    addInst $ goto endifName
+    addInst $ label elseName
     mapM_ emitStatement elseStmts
-    addInst lend
+    addInst $ label endifName
 emitStatement (WhileStatement cond stmts) = do
-    toplabel@(~(Label ltoplabel)) <- genLabel "TOP_LABEL"
-    bottomlabel@(~(Label lbottomlabel)) <- genLabel "BOTTOM_LABEL"
-    addInst toplabel
+    topLabelName <- genLabel "TOP_LABEL"
+    bottomLabelName <- genLabel "BOTTOM_LABEL"
+    addInst $ label topLabelName
     emitExpression cond
-    addInsts [not, ifGoto lbottomlabel]
+    addInsts [not, ifGoto bottomLabelName]
     mapM_ emitStatement stmts
-    addInst $ goto ltoplabel
-    addInst bottomlabel
+    addInst $ goto topLabelName
+    addInst $ label bottomLabelName
 emitStatement (DoStatement subCall) = do
     emitSubroutineCall subCall
     addInst $ pop temp 0
@@ -281,11 +287,11 @@ emitOp GreaterThan = addInst gt
 emitOp Equals      = addInst eq
 
 codegen' :: a -> (a -> CodeGen b) -> CompileState -> Either ErrorMsg Program
-codegen' ast f state = case msg of
+codegen' ast f state' = case msg of
             Left m  -> Left m
             Right _ -> Right $ toList insts
     where
-        result = runWriter $ (evalStateT $ runExceptT (f ast)) state
+        result = runWriter $ (evalStateT $ runExceptT (f ast)) state'
         (msg, insts) = result
 
 getClassMemSeg :: ClassVarType -> MemSeg
@@ -301,14 +307,14 @@ lookupSymTab name = do
 
 maybeLookupSymTab :: String -> CodeGen (Maybe TableEntry)
 maybeLookupSymTab name = do
-    state <- get
-    return $ msum [M.lookup name $ subSymTab state,
-                   M.lookup name $ classSymTab state]
+    state' <- get
+    return $ msum [M.lookup name $ subSymTab state',
+                   M.lookup name $ classSymTab state']
 
 codegen :: Class -> Either ErrorMsg Program
 codegen c@(Class name vars _) = codegen' c emitClass $
-    initCompileState (getIdentifier name) classSymTab
-    where classSymTab = M.fromList $ go coll 0 0
+    initCompileState (getIdentifier name) classSymTab'
+    where classSymTab' = M.fromList $ go coll 0 0
           f (ClassVarDec varty ty names) = map h names
             where h (Identifier i) = (i, Entry ty (getClassMemSeg varty) 0)
           coll = concatMap f vars
@@ -327,9 +333,17 @@ emitClass (Class _ _ subDecs) = mapM_ emitSubroutineDec subDecs
 -- test  "if (z < 10) { let x = -x[y+1] * func(1+3); }" statement emitStatement  teststate
 -- test  "{var int t,g,b; let g = 0;}" subroutineBodyemitSubroutineBody teststate
 
-test' s p f state = case parseAttempt of
+
+
+test'
+    :: String
+    -> Parser a
+    -> (a -> CodeGen b)
+    -> CompileState
+    -> Either String Program
+test' s p f state' = case parseAttempt of
                 Left m    -> Left $ show m
-                Right ast -> codegen' ast f state
+                Right ast -> codegen' ast f state'
     where parseAttempt = parseJackSnippet s p
 
 testCompState :: [(String, Integer, Type)] -> CompileState
@@ -337,7 +351,9 @@ testCompState input = initCompileState "fakeclass" $ M.fromList entries
     where f (s, i, ty) = (s, Entry ty argument i)
           entries = map f input
 
+teststate :: CompileState
 teststate = testCompState [("this",0,classTy),("x",1,Int),("y",2,Int),("z", 3,Int),("w",4,classTy)]
     where classTy = TypeName $ Identifier "fakeclass"
 
-test s p f state = mapM_ print $ fromRight [] $ test' s p f state
+test :: String -> Parser a -> (a -> CodeGen b) -> CompileState -> IO ()
+test s p f state' = mapM_ print $ fromRight [] $ test' s p f state'
