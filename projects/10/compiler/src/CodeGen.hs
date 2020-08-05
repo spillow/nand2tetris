@@ -187,7 +187,7 @@ emitSubroutineDec (SubroutineDec Method _
                    (Identifier subName) params body) = do
     subPreamble 1 0 subName body params
     cname <- gets className
-    addSubSymTabEntry "this" $ Entry (TypeName $ Identifier cname) argument 0
+    addSubSymTabEntry "this" $ Entry (TypeName $ Identifier cname) pointer 0
     addInsts [push argument 0, pop pointer 0]
     emitSubroutineBody 0 body
 emitSubroutineDec _ = throwError "constructor must return a type!"
@@ -241,29 +241,38 @@ emitStatement (LetStatement (Identifier varName') (Just arrIdx) expr) = do
     addInsts [var, add, pop pointer 1, pop that 0]
 emitStatement (IfStatement cond stmts Nothing) = do
     emitExpression cond
-    name' <- genLabel "ENDIF"
-    addInsts [not, ifGoto name']
+    ifTrue <- genLabel "IF_TRUE"
+    endif <- genLabel "ENDIF"
+    addInst $ ifGoto ifTrue
+    addInst $ goto endif
+    addInst $ label ifTrue
     mapM_ emitStatement stmts
-    addInst $ label name'
+    addInst $ label endif
 emitStatement (IfStatement cond stmts (Just elseStmts)) = do
     emitExpression cond
-    elseName <- genLabel "ELSE"
-    endifName <- genLabel "ENDIF"
-    addInsts [not, ifGoto elseName]
+    ifTrue <- genLabel "IF_TRUE"
+    else' <- genLabel "ELSE"
+    endif <- genLabel "ENDIF"
+    addInst $ ifGoto ifTrue
+    addInst $ goto else'
+    addInst $ label ifTrue
     mapM_ emitStatement stmts
-    addInst $ goto endifName
-    addInst $ label elseName
+    addInst $ goto endif
+    addInst $ label else'
     mapM_ emitStatement elseStmts
-    addInst $ label endifName
+    addInst $ label endif
 emitStatement (WhileStatement cond stmts) = do
-    topLabelName <- genLabel "TOP_LABEL"
-    bottomLabelName <- genLabel "BOTTOM_LABEL"
-    addInst $ label topLabelName
+    ifTrue <- genLabel "IF_TRUE"
+    topLabel<- genLabel "TOP_LABEL"
+    bottomLabel <- genLabel "BOTTOM_LABEL"
+    addInst $ label topLabel
     emitExpression cond
-    addInsts [not, ifGoto bottomLabelName]
+    addInst $ ifGoto ifTrue
+    addInst $ goto bottomLabel
+    addInst $ label ifTrue
     mapM_ emitStatement stmts
-    addInst $ goto topLabelName
-    addInst $ label bottomLabelName
+    addInst $ goto topLabel
+    addInst $ label bottomLabel
 emitStatement (DoStatement subCall) = do
     emitSubroutineCall subCall
     addInst $ pop temp 0
