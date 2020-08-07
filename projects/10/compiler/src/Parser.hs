@@ -1,12 +1,14 @@
 module Parser
     ( parseJack
     , parseJackSnippet
+    , parseJackFromFile
     )
 where
 
 import Control.Monad (void, liftM2)
 import Text.ParserCombinators.Parsec
 import Grammar
+import Text.Show.Pretty (pPrint)
 
 import Prelude hiding (True, False)
 
@@ -249,3 +251,9 @@ parseJackSnippet s p = parse p "(unknown)" s
 
 parseJack :: FilePath -> String -> Either ParseError Class
 parseJack = parse parseClass
+
+parseJackFromFile :: FilePath -> IO ()
+parseJackFromFile path = do
+    text <- readFile path
+    let result = parseJack path text
+    pPrint result
